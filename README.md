@@ -1,4 +1,4 @@
-# Philips SREAD1 for Home Assistant
+# Philips EyeCare Smart Lamp 2 for Home Assistant
 
 A focused Home Assistant custom integration for the **Philips EyeCare Smart
 Lamp 2**, model `philips.light.sread1`.
@@ -60,9 +60,10 @@ AP-derived token is replaced after the lamp gets DNS/cloud access.
    ```
 
 5. Select **Integration**.
-6. Install **Philips SREAD1**.
+6. Install **Philips EyeCare Smart Lamp 2**.
 7. Restart Home Assistant.
-8. Go to **Settings → Devices & Services → Add Integration → Philips SREAD1**.
+8. Go to **Settings → Devices & Services → Add Integration → Philips EyeCare
+   Smart Lamp 2**.
 9. Enter the lamp IP/host and MiIO token.
 
 HACS installs the directory under `/config/custom_components/philips_sread1`
@@ -70,9 +71,13 @@ and can update it from later GitHub Releases.
 
 ## Updating with HACS
 
-When HACS shows an update for **Philips SREAD1**, open the integration in HACS,
-select **Update**, and restart Home Assistant after installation. Existing
-devices and entity unique IDs are preserved.
+When HACS shows an update for **Philips EyeCare Smart Lamp 2**, open the
+integration in HACS, select **Update**, and restart Home Assistant after
+installation. Existing devices and entity unique IDs are preserved.
+
+The repository includes native `256×256` and `512×512` brand icons. Home
+Assistant 2026.3 or newer loads them directly from the custom integration;
+older supported releases continue to work but may display a generic icon.
 
 ## Manual installation
 
@@ -88,8 +93,9 @@ to:
 /config/custom_components/philips_sread1
 ```
 
-Then restart Home Assistant and add **Philips SREAD1** from **Settings → Devices
-& Services → Add Integration**. The integration itself requires no YAML.
+Then restart Home Assistant and add **Philips EyeCare Smart Lamp 2** from
+**Settings → Devices & Services → Add Integration**. The integration itself
+requires no YAML.
 
 ## Local provisioning and token stability
 

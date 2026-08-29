@@ -4,7 +4,7 @@ from typing import Final
 
 DOMAIN: Final = "philips_sread1"
 MODEL: Final = "philips.light.sread1"
-NAME: Final = "Philips SREAD1"
+NAME: Final = "Philips EyeCare Smart Lamp 2"
 
 MIIO_PORT: Final = 54321
 MIIO_TIMEOUT: Final = 5.0

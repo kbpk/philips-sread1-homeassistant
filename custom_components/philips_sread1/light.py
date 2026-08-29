@@ -47,8 +47,8 @@ class PhilipsSread1Light(PhilipsSread1Entity, LightEntity):
 
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_has_entity_name = True
-    _attr_name = None
     _attr_supported_color_modes: ClassVar[set[ColorMode]] = {ColorMode.BRIGHTNESS}
+    _attr_translation_key = "main_light"
 
     def __init__(
         self,
