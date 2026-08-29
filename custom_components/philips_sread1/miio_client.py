@@ -24,17 +24,13 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from .const import (
     DEVICE_BRIGHTNESS_MAX,
     DEVICE_BRIGHTNESS_MIN,
-    METHOD_GET_PROPERTIES,
-    METHOD_SET_AMBIENT_BRIGHTNESS,
-    METHOD_SET_AMBIENT_POWER,
-    METHOD_SET_BRIGHTNESS,
-    METHOD_SET_EYECARE,
-    METHOD_SET_POWER,
+    MiIOPowerState,
     MIIO_HANDSHAKE_TIMEOUT,
     MIIO_PORT,
     MIIO_REQUEST_ATTEMPTS,
     MIIO_RETRY_DELAY_SECONDS,
     MIIO_TIMEOUT,
+    Sread1Method,
     SREAD1_STATUS_PROPERTIES,
 )
 
@@ -110,6 +106,73 @@ class PhilipsSread1State:
     ambient_is_on: bool
     ambient_brightness: int
     automatic_brightness_is_on: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PhilipsSread1Properties:
+    """Validated get_prop values used by the integration."""
+
+    power: MiIOPowerState
+    brightness: int
+    ambient_power: MiIOPowerState
+    ambient_brightness: int
+    eyecare: MiIOPowerState
+
+    @classmethod
+    def from_result(cls, result: Any) -> PhilipsSread1Properties:
+        """Validate and map the positional MiIO get_prop response."""
+        if not isinstance(result, list) or len(result) < 6:
+            raise MiIOProtocolError("get_prop returned an unexpected result")
+
+        (
+            power,
+            brightness,
+            _notify_status,
+            ambient_power,
+            ambient_brightness,
+            eyecare,
+            *_future_properties,
+        ) = result
+        return cls(
+            power=cls._parse_power(power, "Power"),
+            brightness=cls._parse_brightness(brightness, "Brightness"),
+            ambient_power=cls._parse_power(ambient_power, "Ambient power"),
+            ambient_brightness=cls._parse_brightness(
+                ambient_brightness, "Ambient brightness"
+            ),
+            eyecare=cls._parse_power(eyecare, "EyeCare"),
+        )
+
+    def as_state(self) -> PhilipsSread1State:
+        """Convert wire properties to the state exposed by the coordinator."""
+        return PhilipsSread1State(
+            is_on=self.power is MiIOPowerState.ON,
+            brightness=self.brightness,
+            # Firmware retains ambstatus while primary power is off. Entities
+            # combine both values when exposing the effective physical output.
+            ambient_is_on=self.ambient_power is MiIOPowerState.ON,
+            ambient_brightness=self.ambient_brightness,
+            automatic_brightness_is_on=self.eyecare is MiIOPowerState.ON,
+        )
+
+    @staticmethod
+    def _parse_power(value: Any, name: str) -> MiIOPowerState:
+        """Validate a native on/off property."""
+        try:
+            return MiIOPowerState(value)
+        except (TypeError, ValueError) as err:
+            raise MiIOProtocolError(
+                f"{name} property has an unexpected value"
+            ) from err
+
+    @staticmethod
+    def _parse_brightness(value: Any, name: str) -> int:
+        """Validate a native brightness property."""
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise MiIOProtocolError(f"{name} property is not an integer")
+        if not DEVICE_BRIGHTNESS_MIN <= value <= DEVICE_BRIGHTNESS_MAX:
+            raise MiIOProtocolError(f"{name} property is outside the supported range")
+        return value
 
 
 def _md5(data: bytes) -> bytes:
@@ -295,7 +358,9 @@ class PhilipsSread1MiIOClient:
             return handshake
 
     async def async_request(
-        self, method: str, params: Sequence[Any] | dict[str, Any] | None = None
+        self,
+        method: Sread1Method,
+        params: Sequence[Any] | dict[str, Any] | None = None,
     ) -> Any:
         """Send a MiIO command, retrying only transient transport failures."""
         serialized_params = (
@@ -336,62 +401,47 @@ class PhilipsSread1MiIOClient:
     async def async_get_state(self) -> PhilipsSread1State:
         """Read both light sources and automatic-brightness mode."""
         result = await self.async_request(
-            METHOD_GET_PROPERTIES, SREAD1_STATUS_PROPERTIES
+            Sread1Method.GET_PROPERTIES, SREAD1_STATUS_PROPERTIES
         )
-        if not isinstance(result, list) or len(result) < 6:
-            raise MiIOProtocolError("get_prop returned an unexpected result")
-
-        power = self._validate_power_property(result[0], "Power")
-        brightness = self._validate_brightness_property(result[1], "Brightness")
-        ambient_power = self._validate_power_property(result[3], "Ambient power")
-        ambient_brightness = self._validate_brightness_property(
-            result[4], "Ambient brightness"
-        )
-        eyecare = self._validate_power_property(result[5], "EyeCare")
-
-        return PhilipsSread1State(
-            is_on=power == "on",
-            brightness=brightness,
-            # The firmware reports ambstatus as a remembered request even when
-            # primary power is off. The entity combines this with power when it
-            # reports the effective physical ambient state.
-            ambient_is_on=ambient_power == "on",
-            ambient_brightness=ambient_brightness,
-            automatic_brightness_is_on=eyecare == "on",
-        )
+        return PhilipsSread1Properties.from_result(result).as_state()
 
     async def async_set_power(self, turn_on: bool) -> None:
         """Set primary light power."""
         result = await self.async_request(
-            METHOD_SET_POWER, ["on" if turn_on else "off"]
+            Sread1Method.SET_POWER,
+            [MiIOPowerState.ON if turn_on else MiIOPowerState.OFF],
         )
-        self._validate_ok(result, METHOD_SET_POWER)
+        self._validate_ok(result, Sread1Method.SET_POWER)
 
     async def async_set_brightness(self, brightness: int) -> None:
         """Set primary light brightness in its native 1..100 range."""
         self._validate_brightness_argument(brightness)
-        result = await self.async_request(METHOD_SET_BRIGHTNESS, [brightness])
-        self._validate_ok(result, METHOD_SET_BRIGHTNESS)
+        result = await self.async_request(Sread1Method.SET_BRIGHTNESS, [brightness])
+        self._validate_ok(result, Sread1Method.SET_BRIGHTNESS)
 
     async def async_set_ambient_power(self, turn_on: bool) -> None:
         """Set ambient/back light power."""
         result = await self.async_request(
-            METHOD_SET_AMBIENT_POWER, ["on" if turn_on else "off"]
+            Sread1Method.SET_AMBIENT_POWER,
+            [MiIOPowerState.ON if turn_on else MiIOPowerState.OFF],
         )
-        self._validate_ok(result, METHOD_SET_AMBIENT_POWER)
+        self._validate_ok(result, Sread1Method.SET_AMBIENT_POWER)
 
     async def async_set_ambient_brightness(self, brightness: int) -> None:
         """Set ambient/back light brightness in its native 1..100 range."""
         self._validate_brightness_argument(brightness)
-        result = await self.async_request(METHOD_SET_AMBIENT_BRIGHTNESS, [brightness])
-        self._validate_ok(result, METHOD_SET_AMBIENT_BRIGHTNESS)
+        result = await self.async_request(
+            Sread1Method.SET_AMBIENT_BRIGHTNESS, [brightness]
+        )
+        self._validate_ok(result, Sread1Method.SET_AMBIENT_BRIGHTNESS)
 
     async def async_set_automatic_brightness(self, turn_on: bool) -> None:
         """Enable or disable EyeCare automatic brightness."""
         result = await self.async_request(
-            METHOD_SET_EYECARE, ["on" if turn_on else "off"]
+            Sread1Method.SET_EYECARE,
+            [MiIOPowerState.ON if turn_on else MiIOPowerState.OFF],
         )
-        self._validate_ok(result, METHOD_SET_EYECARE)
+        self._validate_ok(result, Sread1Method.SET_EYECARE)
 
     def _next_request_id(self) -> int:
         """Increment the MiIO request ID, wrapping like established clients."""
@@ -401,26 +451,10 @@ class PhilipsSread1MiIOClient:
         return self._request_id
 
     @staticmethod
-    def _validate_ok(result: Any, method: str) -> None:
+    def _validate_ok(result: Any, method: Sread1Method) -> None:
         """Validate the standard response to a setter command."""
         if result not in (["ok"], "ok"):
             raise MiIOProtocolError(f"{method} returned an unexpected result")
-
-    @staticmethod
-    def _validate_power_property(value: Any, name: str) -> str:
-        """Validate a native on/off property."""
-        if value not in ("on", "off"):
-            raise MiIOProtocolError(f"{name} property has an unexpected value")
-        return value
-
-    @staticmethod
-    def _validate_brightness_property(value: Any, name: str) -> int:
-        """Validate a native brightness property."""
-        if isinstance(value, bool) or not isinstance(value, int):
-            raise MiIOProtocolError(f"{name} property is not an integer")
-        if not DEVICE_BRIGHTNESS_MIN <= value <= DEVICE_BRIGHTNESS_MAX:
-            raise MiIOProtocolError(f"{name} property is outside the supported range")
-        return value
 
     @staticmethod
     def _validate_brightness_argument(brightness: int) -> None:

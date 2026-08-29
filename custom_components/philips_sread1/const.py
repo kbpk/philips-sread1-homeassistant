@@ -1,5 +1,6 @@
 """Constants for the Philips SREAD1 integration."""
 
+from enum import StrEnum
 from typing import Final
 
 DOMAIN: Final = "philips_sread1"
@@ -21,29 +22,52 @@ CONF_REQUEST_ATTEMPTS: Final = "request_attempts"
 CONF_RETRY_DELAY: Final = "retry_delay"
 CONF_AVAILABILITY_GRACE: Final = "availability_grace"
 
-PROPERTY_POWER: Final = "power"
-PROPERTY_BRIGHTNESS: Final = "bright"
-PROPERTY_AMBIENT_POWER: Final = "ambstatus"
-PROPERTY_AMBIENT_BRIGHTNESS: Final = "ambvalue"
-PROPERTY_EYECARE: Final = "eyecare"
-SREAD1_STATUS_PROPERTIES: Final = (
-    PROPERTY_POWER,
-    PROPERTY_BRIGHTNESS,
-    "notifystatus",
-    PROPERTY_AMBIENT_POWER,
-    PROPERTY_AMBIENT_BRIGHTNESS,
-    PROPERTY_EYECARE,
-    "scene_num",
-    "bls",
-    "dvalue",
-)
 
-METHOD_GET_PROPERTIES: Final = "get_prop"
-METHOD_SET_POWER: Final = "set_power"
-METHOD_SET_BRIGHTNESS: Final = "set_bright"
-METHOD_SET_AMBIENT_POWER: Final = "enable_amb"
-METHOD_SET_AMBIENT_BRIGHTNESS: Final = "set_amb_bright"
-METHOD_SET_EYECARE: Final = "set_eyecare"
+class MiIOPowerState(StrEnum):
+    """Power values used by the SREAD1 MiIO protocol."""
+
+    OFF = "off"
+    ON = "on"
+
+
+class Sread1Method(StrEnum):
+    """Supported SREAD1 MiIO methods."""
+
+    GET_PROPERTIES = "get_prop"
+    SET_POWER = "set_power"
+    SET_BRIGHTNESS = "set_bright"
+    SET_AMBIENT_POWER = "enable_amb"
+    SET_AMBIENT_BRIGHTNESS = "set_amb_bright"
+    SET_EYECARE = "set_eyecare"
+
+
+class Sread1Property(StrEnum):
+    """Properties requested from the SREAD1 firmware."""
+
+    POWER = "power"
+    BRIGHTNESS = "bright"
+    NOTIFY_STATUS = "notifystatus"
+    AMBIENT_POWER = "ambstatus"
+    AMBIENT_BRIGHTNESS = "ambvalue"
+    EYECARE = "eyecare"
+    SCENE_NUMBER = "scene_num"
+    BACKLIGHT_SENSOR = "bls"
+    DVALUE = "dvalue"
+
+
+# MiIO returns get_prop values positionally, so keep this tuple explicit and in
+# exactly the same order expected by PhilipsSread1Properties.from_result().
+SREAD1_STATUS_PROPERTIES: Final[tuple[Sread1Property, ...]] = (
+    Sread1Property.POWER,
+    Sread1Property.BRIGHTNESS,
+    Sread1Property.NOTIFY_STATUS,
+    Sread1Property.AMBIENT_POWER,
+    Sread1Property.AMBIENT_BRIGHTNESS,
+    Sread1Property.EYECARE,
+    Sread1Property.SCENE_NUMBER,
+    Sread1Property.BACKLIGHT_SENSOR,
+    Sread1Property.DVALUE,
+)
 
 DEVICE_BRIGHTNESS_MIN: Final = 1
 DEVICE_BRIGHTNESS_MAX: Final = 100
