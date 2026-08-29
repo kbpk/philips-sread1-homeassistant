@@ -1,6 +1,7 @@
 """Data update coordinator for Philips SREAD1."""
 
 import logging
+from dataclasses import replace
 from datetime import timedelta
 from typing import override
 
@@ -48,51 +49,53 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             raise UpdateFailed(f"Unable to update Philips SREAD1: {err}") from err
 
     async def async_set_power(self, turn_on: bool) -> None:
-        """Set power and immediately request authoritative state."""
+        """Set power and publish the acknowledged state without another request."""
         try:
             await self.client.async_set_power(turn_on)
         except MiIOError as err:
             raise HomeAssistantError(
                 f"Unable to set Philips SREAD1 power: {err}"
             ) from err
-        await self.async_request_refresh()
+        self.async_set_updated_data(replace(self.data, is_on=turn_on))
 
     async def async_set_brightness(self, brightness: int) -> None:
-        """Set brightness and immediately request authoritative state."""
+        """Set brightness and publish the acknowledged state."""
         try:
             await self.client.async_set_brightness(brightness)
         except (MiIOError, TypeError, ValueError) as err:
             raise HomeAssistantError(
                 f"Unable to set Philips SREAD1 brightness: {err}"
             ) from err
-        await self.async_request_refresh()
+        self.async_set_updated_data(replace(self.data, brightness=brightness))
 
     async def async_set_ambient_power(self, turn_on: bool) -> None:
-        """Set ambient/back light power and refresh authoritative state."""
+        """Set ambient/back light power and publish the acknowledged state."""
         try:
             await self.client.async_set_ambient_power(turn_on)
         except MiIOError as err:
             raise HomeAssistantError(
                 f"Unable to set Philips SREAD1 ambient power: {err}"
             ) from err
-        await self.async_request_refresh()
+        self.async_set_updated_data(replace(self.data, ambient_is_on=turn_on))
 
     async def async_set_ambient_brightness(self, brightness: int) -> None:
-        """Set ambient/back light brightness and refresh authoritative state."""
+        """Set ambient/back light brightness and publish acknowledged state."""
         try:
             await self.client.async_set_ambient_brightness(brightness)
         except (MiIOError, TypeError, ValueError) as err:
             raise HomeAssistantError(
                 f"Unable to set Philips SREAD1 ambient brightness: {err}"
             ) from err
-        await self.async_request_refresh()
+        self.async_set_updated_data(replace(self.data, ambient_brightness=brightness))
 
     async def async_set_automatic_brightness(self, turn_on: bool) -> None:
-        """Set EyeCare automatic brightness and refresh authoritative state."""
+        """Set EyeCare automatic brightness and publish acknowledged state."""
         try:
             await self.client.async_set_automatic_brightness(turn_on)
         except MiIOError as err:
             raise HomeAssistantError(
                 f"Unable to set Philips SREAD1 automatic brightness: {err}"
             ) from err
-        await self.async_request_refresh()
+        self.async_set_updated_data(
+            replace(self.data, automatic_brightness_is_on=turn_on)
+        )
