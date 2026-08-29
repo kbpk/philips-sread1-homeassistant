@@ -30,6 +30,7 @@ from .const import (
     METHOD_SET_BRIGHTNESS,
     METHOD_SET_EYECARE,
     METHOD_SET_POWER,
+    MIIO_HANDSHAKE_TIMEOUT,
     MIIO_PORT,
     MIIO_REQUEST_ATTEMPTS,
     MIIO_RETRY_DELAY_SECONDS,
@@ -238,6 +239,7 @@ class PhilipsSread1MiIOClient:
         *,
         port: int = MIIO_PORT,
         timeout: float = MIIO_TIMEOUT,
+        handshake_timeout: float = MIIO_HANDSHAKE_TIMEOUT,
         request_attempts: int = MIIO_REQUEST_ATTEMPTS,
         retry_delay: float = MIIO_RETRY_DELAY_SECONDS,
     ) -> None:
@@ -263,6 +265,8 @@ class PhilipsSread1MiIOClient:
 
         if len(token_bytes) != 16:
             raise ValueError("MiIO token must contain exactly 16 bytes")
+        if handshake_timeout <= 0:
+            raise ValueError("MiIO handshake timeout must be greater than zero")
         if request_attempts < 1:
             raise ValueError("MiIO request attempts must be at least one")
         if retry_delay < 0:
@@ -271,6 +275,7 @@ class PhilipsSread1MiIOClient:
         self._token = token_bytes
         self._port = port
         self._timeout = timeout
+        self._handshake_timeout = handshake_timeout
         self._request_attempts = request_attempts
         self._retry_delay = retry_delay
         self._request_id = secrets.randbelow(8999) + 1
@@ -448,11 +453,12 @@ class PhilipsSread1MiIOClient:
 
     def _exchange_handshake(self, udp_socket: socket.socket) -> MiIOHandshake:
         """Exchange a handshake on an already connected UDP socket."""
+        udp_socket.settimeout(self._handshake_timeout)
         _LOGGER.debug(
             "Sending MiIO handshake host=%s port=%s timeout=%.1fs packet_length=%s",
             self.host,
             self._port,
-            self._timeout,
+            self._handshake_timeout,
             len(_HELLO_PACKET),
         )
         try:
