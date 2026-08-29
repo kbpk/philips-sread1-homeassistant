@@ -9,44 +9,34 @@ use or depend on `python-miio`.
 
 ## Supported features
 
-- Primary light power on/off
-- Primary light power state
-- Primary light brightness control
-- Primary light brightness state
-- Ambient/back light power and state (subject to the firmware's main-power supply)
-- Ambient/back light brightness control while EyeCare is disabled
-- EyeCare automatic-brightness mode control and state
-- Three attempts for transient UDP timeouts and socket failures
-- One-second handshake timeout for fast recovery from dropped UDP handshakes
+- Primary light power and brightness
+- Ambient/back light power and manual brightness
+- EyeCare automatic-brightness mode
+- State updates from the lamp, including changes made with its physical controls
 - UI configuration through a Home Assistant Config Flow
-- Polling every 15 seconds, including changes made with the physical controls
-- Immediate Home Assistant state updates after acknowledged commands
+- Configurable polling, timeouts, retries, and availability grace period
+- Immediate state updates after acknowledged commands
 
 Smart night light, fixed scenes, eye-fatigue reminders, and delayed off are not
 currently exposed as Home Assistant entities.
 
-On the tested `philips.light.sread1` firmware `1.3.0`, EyeCare takes hardware
-control of automatic brightness and links the physical ambient output to that
-mode. The lamp still accepts `set_amb_bright` and reports the requested
-`ambvalue`, but the change has no visible effect while EyeCare is enabled. The
-integration therefore exposes the ambient entity as ON/OFF only in EyeCare mode
-and restores its brightness slider after EyeCare is disabled. Manual ambient
-brightness accepts the native range `1..100`; the lamp rejects `0`.
+## Important lamp behavior
 
-The same firmware couples several otherwise separate commands. Enabling ambient
-light or EyeCare wakes the primary light, and the tested firmware does not
-provide a physical ambient-only state: turning primary power off extinguishes
-both outputs even if `ambstatus` remains remembered as `on`. The integration
-therefore reports ambient as physically on only while primary power is on and
-keeps the main entity synchronized with these side effects. Disabling EyeCare
-while the primary light is off requires waking it first and then restoring power
-off, which may produce a very brief flash. Setting primary brightness manually
-disables EyeCare in the firmware; the integration reflects that mode change
-immediately.
+The following behavior was confirmed on `philips.light.sread1` firmware `1.3.0`:
+
+- The ambient light cannot operate physically without primary power. Enabling
+  ambient or EyeCare may therefore also wake the primary light.
+- EyeCare controls ambient brightness automatically. While EyeCare is enabled,
+  the ambient entity is exposed as ON/OFF without a manual brightness slider.
+- Changing primary brightness manually disables EyeCare.
+- Disabling EyeCare while the lamp is off may produce a very brief flash because
+  the firmware must be woken before it accepts the command.
+- Manual ambient brightness uses the lamp's native `1–100` range; the integration
+  converts this to Home Assistant's brightness scale.
 
 ## Requirements
 
-- Home Assistant 2025.8.2 or newer
+- Home Assistant 2025.8.0 or newer
 - A provisioned `philips.light.sread1` lamp reachable from Home Assistant
 - The lamp's local IPv4 address or hostname
 - Its 16-byte MiIO token written as exactly 32 hexadecimal characters
@@ -130,7 +120,7 @@ The optional offline helper can provision the lamp and verify the token both in
 setup mode and after it joins the LAN:
 
 ```bash
-uv run tools/provision_and_test.py
+uv run --with cryptography tools/provision_and_test.py
 ```
 
 Real-device testing with `philips.light.sread1` firmware `1.3.0` showed that the
@@ -167,7 +157,9 @@ Xiaomi cloud.
 ## Troubleshooting
 
 - Verify that the lamp answers at the configured address and UDP port `54321`
-  is not blocked between the Home Assistant host/VLAN and the lamp.
+  is not blocked between the Home Assistant host/VLAN and the lamp. Routed and
+  VPN access works when the firewall allows UDP destination port `54321` and
+  return traffic.
 - Confirm the token has exactly 32 hexadecimal characters. Re-provisioning or
   resetting a device can change its token.
 - If an AP-derived token works immediately after provisioning but later reports
@@ -179,15 +171,22 @@ Xiaomi cloud.
   they do not trigger a redundant `get_prop` transaction. Changes made with the
   lamp's physical controls are detected by the next poll, normally within 15
   seconds.
-- Transient handshake/request timeouts and socket failures are retried up to
-  three times with a fresh handshake and request ID. After a successful poll,
-  the integration keeps the last confirmed state through brief communication
-  gaps and only marks the entities unavailable after the state has been stale
-  for more than 60 seconds. A command acknowledged by the lamp also renews this
-  availability window. Authentication failures are never hidden by the grace
-  period. Later successful coordinator polls recover automatically.
+- By default, transient network failures are retried three times and the last
+  confirmed state is kept for up to 60 seconds. Later successful polls recover
+  automatically. These values can be changed through **Configure**.
 - If HACS does not offer a new version, confirm that the GitHub tag has a full
   GitHub Release. A tag alone is not enough for release-based HACS updates.
+
+To test basic UDP access without providing a token, download or clone this
+repository and run the following from a computer that should be able to reach
+the lamp:
+
+```bash
+python tools/test_miio_handshake.py LAMP_IP
+```
+
+A successful result confirms that the lamp answered the MiIO handshake on UDP
+port `54321`. A timeout usually indicates routing, VPN, or firewall filtering.
 
 To enable debug logs temporarily, add this optional block to
 `configuration.yaml` and restart Home Assistant:
