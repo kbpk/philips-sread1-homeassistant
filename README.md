@@ -46,7 +46,7 @@ immediately.
 
 ## Requirements
 
-- Home Assistant 2024.11.0 or newer
+- Home Assistant 2025.8.2 or newer
 - A provisioned `philips.light.sread1` lamp reachable from Home Assistant
 - The lamp's local IPv4 address or hostname
 - Its 16-byte MiIO token written as exactly 32 hexadecimal characters
