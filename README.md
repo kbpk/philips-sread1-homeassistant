@@ -13,12 +13,14 @@ use or depend on `python-miio`.
 - Primary light power state
 - Primary light brightness control
 - Primary light brightness state
+- Independent ambient/back light power and state
+- Independent ambient/back light brightness control and state
+- EyeCare automatic-brightness mode control and state
 - UI configuration through a Home Assistant Config Flow
 - Polling every 15 seconds and an immediate state refresh after commands
 
-Ambient light, eyecare/night modes, scenes, reminders, and delayed off are not
-part of version 0.1.0. The coordinator/client split keeps those additions
-straightforward for future releases.
+Smart night light, fixed scenes, eye-fatigue reminders, and delayed off are not
+currently exposed as Home Assistant entities.
 
 ## Requirements
 
@@ -33,7 +35,7 @@ issue, screenshot, or debug log.
 
 When obtaining the token locally from the lamp's setup access point, see
 **Local provisioning and token stability** below. On the tested firmware, an
-AP-derived token is replaced after the lamp gets Internet access.
+AP-derived token is replaced after the lamp gets DNS/cloud access.
 
 ## Installation with HACS
 
@@ -54,6 +56,12 @@ AP-derived token is replaced after the lamp gets Internet access.
 
 HACS installs the directory under `/config/custom_components/philips_sread1`
 and can update it from later GitHub Releases.
+
+## Updating with HACS
+
+When HACS shows an update for **Philips SREAD1**, open the integration in HACS,
+select **Update**, and restart Home Assistant after installation. Existing
+devices and entity unique IDs are preserved.
 
 ## Manual installation
 
@@ -141,103 +149,6 @@ logger:
 The integration logs the host, MiIO method, request ID, timeouts, packet length,
 and parsing outcome. It never logs the token. Remove the debug override after
 troubleshooting to keep logs compact.
-
-## MiIO commands used for `philips.light.sread1`
-
-Version 0.1.0 uses the model-specific commands implemented by the Philips
-EyeCare device support in `python-miio` as a protocol reference only:
-
-| Operation | MiIO method | Parameters/property |
-| --- | --- | --- |
-| Read lamp state | `get_prop` | `["power", "bright", "notifystatus", "ambstatus", "ambvalue", "eyecare", "scene_num", "bls", "dvalue"]` |
-| Turn primary light on/off | `set_power` | `["on"]` / `["off"]` |
-| Set primary brightness | `set_bright` | `[1..100]` |
-
-Version 0.1.0 reads the complete model-specific status tuple for firmware
-compatibility, but only uses and exposes `power` and `bright`. The remaining
-properties are reserved for later entities and features.
-
-Sources:
-
-- [`python-miio` Philips EyeCare implementation](https://github.com/rytilahti/python-miio/blob/master/miio/integrations/philips/light/philips_eyecare.py)
-- [Home Assistant's current Xiaomi MiIO light platform](https://github.com/home-assistant/core/blob/dev/homeassistant/components/xiaomi_miio/light.py)
-- [Home Assistant DataUpdateCoordinator guidance](https://developers.home-assistant.io/docs/integration_fetching_data/)
-- [Home Assistant custom integration manifests](https://developers.home-assistant.io/docs/creating_integration_manifest/)
-- [HACS integration repository requirements](https://hacs.xyz/docs/publish/integration/)
-- [HACS version/release behavior](https://hacs.xyz/docs/publish/start/)
-
-`python-miio` is not imported, bundled, or installed by this repository.
-
-## Architecture
-
-- `miio_client.py` implements handshake, packet framing, checksum validation,
-  AES-128-CBC encryption/decryption, request ID matching, UDP timeout handling,
-  and the three model-specific operations.
-- `coordinator.py` performs non-optimistic polling and translates communication
-  failures into Home Assistant coordinator failures.
-- `light.py` maps the lamp's `1..100` brightness to Home Assistant's `0..255`
-  scale and refreshes state after every command.
-- `config_flow.py` validates host/token connectivity and uses the handshake
-  device ID as the config-entry unique ID to prevent duplicates.
-
-Blocking socket operations run through `asyncio.to_thread`, so the Home
-Assistant event loop is not blocked.
-
-## Creating the GitHub repository
-
-Create an empty public repository named `philips-sread1-homeassistant` under the
-`kbpk` account. Do not initialize it with another README or license. From this
-project directory, run:
-
-```bash
-git init -b main
-git add .
-git commit -m "Initial Philips SREAD1 integration"
-git remote add origin git@github.com:kbpk/philips-sread1-homeassistant.git
-git push -u origin main
-```
-
-Alternatively, GitHub CLI can create the remote and push the existing local
-repository:
-
-```bash
-gh repo create kbpk/philips-sread1-homeassistant \
-  --public --source=. --remote=origin --push
-```
-
-Enable GitHub Issues, add a short repository description, and add topics such
-as `home-assistant`, `hacs`, `miio`, and `philips-sread1`. These repository
-settings are among the checks performed by the HACS validation action.
-
-## Releasing and updating
-
-Keep `manifest.json` and the release version synchronized. For the first release:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-gh release create v0.1.0 --title "v0.1.0" --generate-notes
-```
-
-The last command creates the required non-draft GitHub Release. You can instead
-create it in **Releases → Draft a new release**, selecting the existing
-`v0.1.0` tag. HACS uses the GitHub Release tag as the remote version; publishing
-only a Git tag is insufficient.
-
-For a later update, change the manifest version (for example to `0.1.1`), commit
-and push the changes, tag that commit as `v0.1.1`, push the tag, and publish a
-GitHub Release for it:
-
-```bash
-git add .
-git commit -m "Release 0.1.1"
-git push origin main
-git tag v0.1.1
-git push origin v0.1.1
-gh release create v0.1.1 --title "v0.1.1" --generate-notes
-```
-
-HACS will then offer **Update** to installed users.
 
 ## License
 
