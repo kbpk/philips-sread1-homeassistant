@@ -25,7 +25,10 @@ from .const import (
     DEVICE_BRIGHTNESS_MAX,
     DEVICE_BRIGHTNESS_MIN,
     METHOD_GET_PROPERTIES,
+    METHOD_SET_AMBIENT_BRIGHTNESS,
+    METHOD_SET_AMBIENT_POWER,
     METHOD_SET_BRIGHTNESS,
+    METHOD_SET_EYECARE,
     METHOD_SET_POWER,
     MIIO_PORT,
     MIIO_TIMEOUT,
@@ -97,10 +100,13 @@ class MiIOHandshake:
 
 @dataclass(frozen=True, slots=True)
 class PhilipsSread1State:
-    """State of the main SREAD1 light."""
+    """State of the supported SREAD1 light features."""
 
     is_on: bool
     brightness: int
+    ambient_is_on: bool
+    ambient_brightness: int
+    automatic_brightness_is_on: bool
 
 
 def _md5(data: bytes) -> bytes:
@@ -291,24 +297,28 @@ class PhilipsSread1MiIOClient:
             )
 
     async def async_get_state(self) -> PhilipsSread1State:
-        """Read power and brightness of the primary light."""
+        """Read both light sources and automatic-brightness mode."""
         result = await self.async_request(
             METHOD_GET_PROPERTIES, SREAD1_STATUS_PROPERTIES
         )
-        if not isinstance(result, list) or len(result) < 2:
+        if not isinstance(result, list) or len(result) < 6:
             raise MiIOProtocolError("get_prop returned an unexpected result")
 
-        power, brightness = result[:2]
-        if power not in ("on", "off"):
-            raise MiIOProtocolError("Power property has an unexpected value")
-        if isinstance(brightness, bool) or not isinstance(brightness, int):
-            raise MiIOProtocolError("Brightness property is not an integer")
-        if not DEVICE_BRIGHTNESS_MIN <= brightness <= DEVICE_BRIGHTNESS_MAX:
-            raise MiIOProtocolError(
-                "Brightness property is outside the supported range"
-            )
+        power = self._validate_power_property(result[0], "Power")
+        brightness = self._validate_brightness_property(result[1], "Brightness")
+        ambient_power = self._validate_power_property(result[3], "Ambient power")
+        ambient_brightness = self._validate_brightness_property(
+            result[4], "Ambient brightness"
+        )
+        eyecare = self._validate_power_property(result[5], "EyeCare")
 
-        return PhilipsSread1State(is_on=power == "on", brightness=brightness)
+        return PhilipsSread1State(
+            is_on=power == "on",
+            brightness=brightness,
+            ambient_is_on=ambient_power == "on",
+            ambient_brightness=ambient_brightness,
+            automatic_brightness_is_on=eyecare == "on",
+        )
 
     async def async_set_power(self, turn_on: bool) -> None:
         """Set primary light power."""
@@ -319,15 +329,29 @@ class PhilipsSread1MiIOClient:
 
     async def async_set_brightness(self, brightness: int) -> None:
         """Set primary light brightness in its native 1..100 range."""
-        if isinstance(brightness, bool) or not isinstance(brightness, int):
-            raise TypeError("Brightness must be an integer")
-        if not DEVICE_BRIGHTNESS_MIN <= brightness <= DEVICE_BRIGHTNESS_MAX:
-            raise ValueError(
-                f"Brightness must be between {DEVICE_BRIGHTNESS_MIN} and "
-                f"{DEVICE_BRIGHTNESS_MAX}"
-            )
+        self._validate_brightness_argument(brightness)
         result = await self.async_request(METHOD_SET_BRIGHTNESS, [brightness])
         self._validate_ok(result, METHOD_SET_BRIGHTNESS)
+
+    async def async_set_ambient_power(self, turn_on: bool) -> None:
+        """Set ambient/back light power."""
+        result = await self.async_request(
+            METHOD_SET_AMBIENT_POWER, ["on" if turn_on else "off"]
+        )
+        self._validate_ok(result, METHOD_SET_AMBIENT_POWER)
+
+    async def async_set_ambient_brightness(self, brightness: int) -> None:
+        """Set ambient/back light brightness in its native 1..100 range."""
+        self._validate_brightness_argument(brightness)
+        result = await self.async_request(METHOD_SET_AMBIENT_BRIGHTNESS, [brightness])
+        self._validate_ok(result, METHOD_SET_AMBIENT_BRIGHTNESS)
+
+    async def async_set_automatic_brightness(self, turn_on: bool) -> None:
+        """Enable or disable EyeCare automatic brightness."""
+        result = await self.async_request(
+            METHOD_SET_EYECARE, ["on" if turn_on else "off"]
+        )
+        self._validate_ok(result, METHOD_SET_EYECARE)
 
     def _next_request_id(self) -> int:
         """Increment the MiIO request ID, wrapping like established clients."""
@@ -341,6 +365,33 @@ class PhilipsSread1MiIOClient:
         """Validate the standard response to a setter command."""
         if result not in (["ok"], "ok"):
             raise MiIOProtocolError(f"{method} returned an unexpected result")
+
+    @staticmethod
+    def _validate_power_property(value: Any, name: str) -> str:
+        """Validate a native on/off property."""
+        if value not in ("on", "off"):
+            raise MiIOProtocolError(f"{name} property has an unexpected value")
+        return value
+
+    @staticmethod
+    def _validate_brightness_property(value: Any, name: str) -> int:
+        """Validate a native brightness property."""
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise MiIOProtocolError(f"{name} property is not an integer")
+        if not DEVICE_BRIGHTNESS_MIN <= value <= DEVICE_BRIGHTNESS_MAX:
+            raise MiIOProtocolError(f"{name} property is outside the supported range")
+        return value
+
+    @staticmethod
+    def _validate_brightness_argument(brightness: int) -> None:
+        """Validate brightness passed to a setter."""
+        if isinstance(brightness, bool) or not isinstance(brightness, int):
+            raise TypeError("Brightness must be an integer")
+        if not DEVICE_BRIGHTNESS_MIN <= brightness <= DEVICE_BRIGHTNESS_MAX:
+            raise ValueError(
+                f"Brightness must be between {DEVICE_BRIGHTNESS_MIN} and "
+                f"{DEVICE_BRIGHTNESS_MAX}"
+            )
 
     def _open_socket(self) -> socket.socket:
         """Create a connected IPv4 UDP socket in the worker thread."""

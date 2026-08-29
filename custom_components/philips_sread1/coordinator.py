@@ -41,7 +41,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
 
     @override
     async def _async_update_data(self) -> PhilipsSread1State:
-        """Fetch the current primary-light state."""
+        """Fetch the current state of all supported lamp features."""
         try:
             return await self.client.async_get_state()
         except MiIOError as err:
@@ -64,5 +64,35 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         except (MiIOError, TypeError, ValueError) as err:
             raise HomeAssistantError(
                 f"Unable to set Philips SREAD1 brightness: {err}"
+            ) from err
+        await self.async_request_refresh()
+
+    async def async_set_ambient_power(self, turn_on: bool) -> None:
+        """Set ambient/back light power and refresh authoritative state."""
+        try:
+            await self.client.async_set_ambient_power(turn_on)
+        except MiIOError as err:
+            raise HomeAssistantError(
+                f"Unable to set Philips SREAD1 ambient power: {err}"
+            ) from err
+        await self.async_request_refresh()
+
+    async def async_set_ambient_brightness(self, brightness: int) -> None:
+        """Set ambient/back light brightness and refresh authoritative state."""
+        try:
+            await self.client.async_set_ambient_brightness(brightness)
+        except (MiIOError, TypeError, ValueError) as err:
+            raise HomeAssistantError(
+                f"Unable to set Philips SREAD1 ambient brightness: {err}"
+            ) from err
+        await self.async_request_refresh()
+
+    async def async_set_automatic_brightness(self, turn_on: bool) -> None:
+        """Set EyeCare automatic brightness and refresh authoritative state."""
+        try:
+            await self.client.async_set_automatic_brightness(turn_on)
+        except MiIOError as err:
+            raise HomeAssistantError(
+                f"Unable to set Philips SREAD1 automatic brightness: {err}"
             ) from err
         await self.async_request_refresh()

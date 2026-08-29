@@ -25,5 +25,17 @@
     "abort": {
       "already_configured": "This lamp is already configured."
     }
+  },
+  "entity": {
+    "light": {
+      "ambient_light": {
+        "name": "Ambient light"
+      }
+    },
+    "switch": {
+      "automatic_brightness": {
+        "name": "Automatic brightness (EyeCare)"
+      }
+    }
   }
 }

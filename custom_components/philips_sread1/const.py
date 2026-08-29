@@ -12,13 +12,16 @@ POLL_INTERVAL_SECONDS: Final = 15
 
 PROPERTY_POWER: Final = "power"
 PROPERTY_BRIGHTNESS: Final = "bright"
+PROPERTY_AMBIENT_POWER: Final = "ambstatus"
+PROPERTY_AMBIENT_BRIGHTNESS: Final = "ambvalue"
+PROPERTY_EYECARE: Final = "eyecare"
 SREAD1_STATUS_PROPERTIES: Final = (
     PROPERTY_POWER,
     PROPERTY_BRIGHTNESS,
     "notifystatus",
-    "ambstatus",
-    "ambvalue",
-    "eyecare",
+    PROPERTY_AMBIENT_POWER,
+    PROPERTY_AMBIENT_BRIGHTNESS,
+    PROPERTY_EYECARE,
     "scene_num",
     "bls",
     "dvalue",
@@ -27,6 +30,9 @@ SREAD1_STATUS_PROPERTIES: Final = (
 METHOD_GET_PROPERTIES: Final = "get_prop"
 METHOD_SET_POWER: Final = "set_power"
 METHOD_SET_BRIGHTNESS: Final = "set_bright"
+METHOD_SET_AMBIENT_POWER: Final = "enable_amb"
+METHOD_SET_AMBIENT_BRIGHTNESS: Final = "set_amb_bright"
+METHOD_SET_EYECARE: Final = "set_eyecare"
 
 DEVICE_BRIGHTNESS_MIN: Final = 1
 DEVICE_BRIGHTNESS_MAX: Final = 100

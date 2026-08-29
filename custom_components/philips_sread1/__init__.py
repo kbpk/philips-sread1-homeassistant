@@ -7,7 +7,7 @@ from .const import MIIO_TIMEOUT
 from .coordinator import PhilipsSread1ConfigEntry, PhilipsSread1Coordinator
 from .miio_client import PhilipsSread1MiIOClient
 
-PLATFORMS: list[Platform] = [Platform.LIGHT]
+PLATFORMS: list[Platform] = [Platform.LIGHT, Platform.SWITCH]
 
 
 async def async_setup_entry(
