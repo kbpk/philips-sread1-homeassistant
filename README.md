@@ -153,8 +153,12 @@ Xiaomi cloud.
   lamp's physical controls are detected by the next poll, normally within 15
   seconds.
 - Transient handshake/request timeouts and socket failures are retried up to
-  three times with a fresh handshake and request ID. If all attempts fail, the
-  entity becomes unavailable; later coordinator polls can recover automatically.
+  three times with a fresh handshake and request ID. After a successful poll,
+  the integration keeps the last confirmed state through brief communication
+  gaps and only marks the entities unavailable after the state has been stale
+  for more than 60 seconds. A command acknowledged by the lamp also renews this
+  availability window. Authentication failures are never hidden by the grace
+  period. Later successful coordinator polls recover automatically.
 - If HACS does not offer a new version, confirm that the GitHub tag has a full
   GitHub Release. A tag alone is not enough for release-based HACS updates.
 

@@ -1,6 +1,7 @@
 """Data update coordinator for Philips SREAD1."""
 
 import logging
+import time
 from dataclasses import replace
 from datetime import timedelta
 from typing import override
@@ -10,8 +11,18 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, NAME, POLL_INTERVAL_SECONDS
-from .miio_client import MiIOError, PhilipsSread1MiIOClient, PhilipsSread1State
+from .const import (
+    DOMAIN,
+    NAME,
+    POLL_FAILURE_GRACE_SECONDS,
+    POLL_INTERVAL_SECONDS,
+)
+from .miio_client import (
+    MiIOError,
+    MiIOInvalidTokenError,
+    PhilipsSread1MiIOClient,
+    PhilipsSread1State,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,14 +50,71 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             always_update=False,
         )
         self.client = client
+        self._last_device_update_monotonic: float | None = None
+        self._consecutive_update_failures = 0
 
     @override
     async def _async_update_data(self) -> PhilipsSread1State:
         """Fetch the current state of all supported lamp features."""
         try:
-            return await self.client.async_get_state()
-        except MiIOError as err:
+            state = await self.client.async_get_state()
+        except MiIOInvalidTokenError as err:
+            # Authentication failures are not transient connectivity problems and
+            # must never be hidden behind cached state.
             raise UpdateFailed(f"Unable to update {NAME}: {err}") from err
+        except MiIOError as err:
+            self._consecutive_update_failures += 1
+            last_update = self._last_device_update_monotonic
+            stale_age = (
+                time.monotonic() - last_update if last_update is not None else None
+            )
+
+            if (
+                self.data is not None
+                and stale_age is not None
+                and stale_age <= POLL_FAILURE_GRACE_SECONDS
+            ):
+                log = (
+                    _LOGGER.warning
+                    if self._consecutive_update_failures == 1
+                    else _LOGGER.debug
+                )
+                log(
+                    "Keeping the last confirmed %s state after polling failure "
+                    "host=%s failures=%s stale_age=%.1fs grace=%ss error=%s",
+                    NAME,
+                    self.client.host,
+                    self._consecutive_update_failures,
+                    stale_age,
+                    POLL_FAILURE_GRACE_SECONDS,
+                    type(err).__name__,
+                )
+                return self.data
+
+            stale_context = (
+                "no previous successful update"
+                if stale_age is None
+                else f"last successful update was {stale_age:.1f}s ago"
+            )
+            raise UpdateFailed(
+                f"Unable to update {NAME}: {err} ({stale_context}; "
+                f"consecutive failures={self._consecutive_update_failures})"
+            ) from err
+
+        self._record_successful_communication()
+        return state
+
+    def _record_successful_communication(self) -> None:
+        """Record an authenticated response from the lamp."""
+        if self._consecutive_update_failures:
+            _LOGGER.info(
+                "Recovered %s communication host=%s after_poll_failures=%s",
+                NAME,
+                self.client.host,
+                self._consecutive_update_failures,
+            )
+        self._consecutive_update_failures = 0
+        self._last_device_update_monotonic = time.monotonic()
 
     async def async_set_power(self, turn_on: bool) -> None:
         """Set power and publish the acknowledged state without another request."""
@@ -54,6 +122,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             await self.client.async_set_power(turn_on)
         except MiIOError as err:
             raise HomeAssistantError(f"Unable to set {NAME} power: {err}") from err
+        self._record_successful_communication()
         self.async_set_updated_data(replace(self.data, is_on=turn_on))
 
     async def async_set_brightness(self, brightness: int) -> None:
@@ -62,6 +131,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             await self.client.async_set_brightness(brightness)
         except (MiIOError, TypeError, ValueError) as err:
             raise HomeAssistantError(f"Unable to set {NAME} brightness: {err}") from err
+        self._record_successful_communication()
         self.async_set_updated_data(replace(self.data, brightness=brightness))
 
     async def async_set_ambient_power(self, turn_on: bool) -> None:
@@ -72,6 +142,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             raise HomeAssistantError(
                 f"Unable to set {NAME} ambient power: {err}"
             ) from err
+        self._record_successful_communication()
         self.async_set_updated_data(replace(self.data, ambient_is_on=turn_on))
 
     async def async_set_ambient_brightness(self, brightness: int) -> None:
@@ -82,6 +153,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             raise HomeAssistantError(
                 f"Unable to set {NAME} ambient brightness: {err}"
             ) from err
+        self._record_successful_communication()
         self.async_set_updated_data(replace(self.data, ambient_brightness=brightness))
 
     async def async_set_automatic_brightness(self, turn_on: bool) -> None:
@@ -92,6 +164,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             raise HomeAssistantError(
                 f"Unable to set {NAME} automatic brightness: {err}"
             ) from err
+        self._record_successful_communication()
         self.async_set_updated_data(
             replace(self.data, automatic_brightness_is_on=turn_on)
         )
