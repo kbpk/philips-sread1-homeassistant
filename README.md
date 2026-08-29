@@ -13,7 +13,7 @@ use or depend on `python-miio`.
 - Primary light power state
 - Primary light brightness control
 - Primary light brightness state
-- Independent ambient/back light power and state
+- Ambient/back light power and state (subject to the firmware's main-power supply)
 - Ambient/back light brightness control while EyeCare is disabled
 - EyeCare automatic-brightness mode control and state
 - Three attempts for transient UDP timeouts and socket failures
@@ -33,14 +33,16 @@ integration therefore exposes the ambient entity as ON/OFF only in EyeCare mode
 and restores its brightness slider after EyeCare is disabled. Manual ambient
 brightness accepts the native range `1..100`; the lamp rejects `0`.
 
-The same firmware couples several otherwise separate commands. Enabling either
-ambient light or EyeCare wakes the primary light, and disabling EyeCare while
-the primary light is off requires waking it first. The integration compensates
-for these side effects and restores the previous primary-light power state, so
-main, ambient, and EyeCare remain independent controls in Home Assistant. This
-may produce a very brief primary-light flash while the two or three local MiIO
-commands are applied. Setting primary brightness manually disables EyeCare in
-the firmware; the integration reflects that mode change immediately.
+The same firmware couples several otherwise separate commands. Enabling ambient
+light or EyeCare wakes the primary light, and the tested firmware does not
+provide a physical ambient-only state: turning primary power off extinguishes
+both outputs even if `ambstatus` remains remembered as `on`. The integration
+therefore reports ambient as physically on only while primary power is on and
+keeps the main entity synchronized with these side effects. Disabling EyeCare
+while the primary light is off requires waking it first and then restoring power
+off, which may produce a very brief flash. Setting primary brightness manually
+disables EyeCare in the firmware; the integration reflects that mode change
+immediately.
 
 ## Requirements
 

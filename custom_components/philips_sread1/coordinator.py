@@ -123,7 +123,15 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         except MiIOError as err:
             raise HomeAssistantError(f"Unable to set {NAME} power: {err}") from err
         self._record_successful_communication()
-        self.async_set_updated_data(replace(self.data, is_on=turn_on))
+        self.async_set_updated_data(
+            replace(
+                self.data,
+                is_on=turn_on,
+                # The primary output is the hardware supply for ambient light;
+                # ambstatus can remain logically on while the lamp is dark.
+                ambient_is_on=turn_on and self.data.ambient_is_on,
+            )
+        )
 
     async def async_set_brightness(self, brightness: int) -> None:
         """Set manual brightness and publish the resulting EyeCare state."""
@@ -143,7 +151,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         )
 
     async def async_set_ambient_power(self, turn_on: bool) -> None:
-        """Set ambient power while preserving the primary-light state."""
+        """Set ambient power while respecting the primary-light coupling."""
         if turn_on == self.data.ambient_is_on:
             return
 
@@ -155,28 +163,14 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
                 f"Unable to set {NAME} ambient power: {err}"
             ) from err
 
-        # enable_amb("on") always wakes the primary light on firmware 1.3.0.
-        # A following set_power("off") leaves ambstatus on, which gives Home
-        # Assistant genuinely independent main and ambient entities.
-        if turn_on and not main_was_on:
-            try:
-                await self.client.async_set_power(False)
-            except MiIOError as err:
-                self._record_successful_communication()
-                self.async_set_updated_data(
-                    replace(self.data, ambient_is_on=True, is_on=True)
-                )
-                raise HomeAssistantError(
-                    f"{NAME} enabled ambient light but could not restore the "
-                    f"primary light state: {err}"
-                ) from err
-
         self._record_successful_communication()
         self.async_set_updated_data(
             replace(
                 self.data,
                 ambient_is_on=turn_on,
-                is_on=main_was_on,
+                # enable_amb("on") wakes primary power. There is no physical
+                # ambient-only state on the tested SREAD1 firmware.
+                is_on=main_was_on or turn_on,
             )
         )
 
@@ -220,9 +214,13 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
                 f"Unable to set {NAME} automatic brightness: {err}"
             ) from err
 
-        # Both EyeCare transitions wake primary power. Restore an originally
-        # off main light; set_power does not alter ambient or EyeCare state.
-        if not main_was_on:
+        # Enabling EyeCare wakes primary power. Keep it on because turning
+        # primary power off also extinguishes the ambient output physically.
+        # Disabling EyeCare is different: after the explicit wake above, turn
+        # primary power back off to preserve an originally dark lamp.
+        if turn_on and not main_was_on:
+            final_main_state = True
+        elif not turn_on and not main_was_on:
             try:
                 await self.client.async_set_power(False)
             except MiIOError as err:
@@ -238,12 +236,15 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
                     f"{NAME} changed automatic brightness but could not restore "
                     f"the primary light state: {err}"
                 ) from err
+            final_main_state = False
+        else:
+            final_main_state = main_was_on
 
         self._record_successful_communication()
         self.async_set_updated_data(
             replace(
                 self.data,
                 automatic_brightness_is_on=turn_on,
-                is_on=main_was_on,
+                is_on=final_main_state,
             )
         )
