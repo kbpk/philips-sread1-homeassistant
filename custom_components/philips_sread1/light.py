@@ -6,6 +6,7 @@ from typing import Any, ClassVar, override
 
 from homeassistant.components.light import ATTR_BRIGHTNESS, ColorMode, LightEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.color import brightness_to_value, value_to_brightness
 
@@ -90,8 +91,6 @@ class PhilipsSread1Light(PhilipsSread1Entity, LightEntity):
 class PhilipsSread1AmbientLight(PhilipsSread1Entity, LightEntity):
     """Representation of the SREAD1 ambient/back light."""
 
-    _attr_color_mode = ColorMode.BRIGHTNESS
-    _attr_supported_color_modes: ClassVar[set[ColorMode]] = {ColorMode.BRIGHTNESS}
     _attr_translation_key = "ambient_light"
 
     def __init__(
@@ -110,8 +109,24 @@ class PhilipsSread1AmbientLight(PhilipsSread1Entity, LightEntity):
 
     @property
     @override
-    def brightness(self) -> int:
-        """Return ambient brightness converted to Home Assistant's 0..255."""
+    def color_mode(self) -> ColorMode:
+        """Return ON/OFF while EyeCare owns the physical ambient output."""
+        if self.coordinator.data.automatic_brightness_is_on:
+            return ColorMode.ONOFF
+        return ColorMode.BRIGHTNESS
+
+    @property
+    @override
+    def supported_color_modes(self) -> set[ColorMode]:
+        """Expose dimming only when firmware applies manual ambient levels."""
+        return {self.color_mode}
+
+    @property
+    @override
+    def brightness(self) -> int | None:
+        """Return manual ambient brightness when EyeCare is disabled."""
+        if self.coordinator.data.automatic_brightness_is_on:
+            return None
         return value_to_brightness(
             DEVICE_BRIGHTNESS_SCALE, self.coordinator.data.ambient_brightness
         )
@@ -120,6 +135,11 @@ class PhilipsSread1AmbientLight(PhilipsSread1Entity, LightEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the ambient light, optionally setting brightness."""
         if ATTR_BRIGHTNESS in kwargs:
+            if self.coordinator.data.automatic_brightness_is_on:
+                raise ServiceValidationError(
+                    "Ambient brightness is controlled by EyeCare; disable "
+                    "automatic brightness before setting a manual level"
+                )
             await self.coordinator.async_set_ambient_brightness(
                 _native_brightness(kwargs)
             )

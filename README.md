@@ -14,7 +14,7 @@ use or depend on `python-miio`.
 - Primary light brightness control
 - Primary light brightness state
 - Independent ambient/back light power and state
-- Independent ambient/back light brightness control and state
+- Ambient/back light brightness control while EyeCare is disabled
 - EyeCare automatic-brightness mode control and state
 - Three attempts for transient UDP timeouts and socket failures
 - UI configuration through a Home Assistant Config Flow
@@ -23,11 +23,13 @@ use or depend on `python-miio`.
 Smart night light, fixed scenes, eye-fatigue reminders, and delayed off are not
 currently exposed as Home Assistant entities.
 
-On the tested `philips.light.sread1` firmware `1.3.0`, EyeCare automatically
-changes the primary light's `bright` value. The ambient light remains a separate
-channel: its `ambvalue` was not changed by EyeCare, and a manual ambient setting
-remained active while EyeCare was enabled. Ambient brightness accepts the native
-range `1..100`; the lamp rejects `0`.
+On the tested `philips.light.sread1` firmware `1.3.0`, EyeCare takes hardware
+control of automatic brightness and links the physical ambient output to that
+mode. The lamp still accepts `set_amb_bright` and reports the requested
+`ambvalue`, but the change has no visible effect while EyeCare is enabled. The
+integration therefore exposes the ambient entity as ON/OFF only in EyeCare mode
+and restores its brightness slider after EyeCare is disabled. Manual ambient
+brightness accepts the native range `1..100`; the lamp rejects `0`.
 
 ## Requirements
 
