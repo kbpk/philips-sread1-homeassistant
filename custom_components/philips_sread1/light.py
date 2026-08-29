@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import Any, ClassVar, override
 
 from homeassistant.components.light import ATTR_BRIGHTNESS, ColorMode, LightEntity
@@ -10,7 +9,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.color import brightness_to_value, value_to_brightness
 
-from .const import DEVICE_BRIGHTNESS_SCALE
+from .const import (
+    DEVICE_BRIGHTNESS_MAX,
+    DEVICE_BRIGHTNESS_MIN,
+    DEVICE_BRIGHTNESS_SCALE,
+)
 from .coordinator import PhilipsSread1ConfigEntry, PhilipsSread1Coordinator
 from .entity import PhilipsSread1Entity
 
@@ -32,9 +35,10 @@ async def async_setup_entry(
 
 def _native_brightness(kwargs: dict[str, Any]) -> int:
     """Convert Home Assistant brightness to the lamp's native scale."""
-    return math.ceil(
+    brightness = round(
         brightness_to_value(DEVICE_BRIGHTNESS_SCALE, kwargs[ATTR_BRIGHTNESS])
     )
+    return max(DEVICE_BRIGHTNESS_MIN, min(DEVICE_BRIGHTNESS_MAX, brightness))
 
 
 class PhilipsSread1Light(PhilipsSread1Entity, LightEntity):
