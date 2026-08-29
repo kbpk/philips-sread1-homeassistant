@@ -1,0 +1,29 @@
+{
+  "title": "Philips SREAD1",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Philips SREAD1",
+        "description": "Enter the local address and the 32-character hexadecimal MiIO token for your philips.light.sread1 lamp.",
+        "data": {
+          "host": "Host or IP address",
+          "token": "MiIO token"
+        },
+        "data_description": {
+          "host": "Local IPv4 address or hostname of the lamp.",
+          "token": "Exactly 32 hexadecimal characters. The token is stored in the Home Assistant config entry."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the lamp. Check its address, network reachability, and UDP port 54321.",
+      "invalid_host": "Enter a host or IP address.",
+      "invalid_response": "The device replied, but its response is not valid for Philips SREAD1.",
+      "invalid_token": "The MiIO token is invalid, or the lamp did not accept the authenticated request.",
+      "unknown": "Unexpected error. Check the Home Assistant logs."
+    },
+    "abort": {
+      "already_configured": "This lamp is already configured."
+    }
+  }
+}

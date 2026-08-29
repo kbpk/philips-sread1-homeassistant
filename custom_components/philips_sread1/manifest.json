@@ -1,0 +1,12 @@
+{
+  "domain": "philips_sread1",
+  "name": "Philips SREAD1",
+  "codeowners": ["@kbpk"],
+  "config_flow": true,
+  "documentation": "https://github.com/kbpk/philips-sread1-homeassistant",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/kbpk/philips-sread1-homeassistant/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
