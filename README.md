@@ -1,11 +1,12 @@
 # Philips EyeCare Smart Lamp 2 for Home Assistant
 
-A focused Home Assistant custom integration for the **Philips EyeCare Smart
-Lamp 2**, model `philips.light.sread1`.
+A focused [Home Assistant](https://www.home-assistant.io/) custom integration
+for the **Philips EyeCare Smart Lamp 2**, model `philips.light.sread1`.
 
-The integration communicates exclusively over the local network using the MiIO
-binary protocol over UDP port `54321`. It does not use Xiaomi Cloud and does not
-use or depend on `python-miio`.
+The integration communicates exclusively over the local network using the
+[MiIO binary protocol](https://python-miio.readthedocs.io/en/latest/_modules/miio/protocol.html)
+over UDP port `54321`. It does not use Xiaomi Cloud and does not use or depend
+on [`python-miio`](https://github.com/rytilahti/python-miio).
 
 ## Supported features
 
@@ -51,7 +52,7 @@ AP-derived token is replaced after the lamp gets DNS/cloud access.
 
 ## Installation with HACS
 
-1. Open HACS.
+1. Open [HACS](https://www.hacs.xyz/).
 2. Go to **Integrations**.
 3. Open **Custom repositories**.
 4. Add:
@@ -175,7 +176,8 @@ Xiaomi cloud.
   confirmed state is kept for up to 60 seconds. Later successful polls recover
   automatically. These values can be changed through **Configure**.
 - If HACS does not offer a new version, confirm that the GitHub tag has a full
-  GitHub Release. A tag alone is not enough for release-based HACS updates.
+  [GitHub Release](https://github.com/kbpk/philips-sread1-homeassistant/releases).
+  A tag alone is not enough for release-based HACS updates.
 
 To test basic UDP access without providing a token, download or clone this
 repository and run the following from a computer that should be able to reach
@@ -202,6 +204,28 @@ The integration logs the host, MiIO method, request ID, timeouts, packet length,
 and parsing outcome. It never logs the token. Remove the debug override after
 troubleshooting to keep logs compact.
 
+## References and acknowledgements
+
+The MiIO wire format and the SREAD1 method/property mapping were cross-checked
+against these public references:
+
+- [`python-miio` MiIO protocol implementation](https://github.com/rytilahti/python-miio/blob/master/miio/protocol.py)
+  for the packet header, token-derived AES key/IV, checksum, and payload format
+- [`python-miio` Philips EyeCare implementation](https://github.com/rytilahti/python-miio/blob/master/miio/integrations/philips/light/philips_eyecare.py)
+  for the established SREAD1 properties and commands
+- [`syssi/philipslight`](https://github.com/syssi/philipslight/blob/master/custom_components/xiaomi_miio_philipslight/light.py)
+  for the earlier Home Assistant mapping of the same lamp model
+- [Home Assistant Community real-device investigation](https://community.home-assistant.io/t/improved-support-of-the-xiaomi-philips-eyecare-2/43424/15)
+  for observed main/ambient behavior and raw command examples
+
+The integration structure follows the
+[Home Assistant developer documentation](https://developers.home-assistant.io/docs/creating_integration_file_structure/),
+and repository packaging follows the
+[HACS integration requirements](https://hacs.xyz/docs/publish/integration/).
+These projects are references, not runtime dependencies. Device-specific edge
+cases documented above were additionally verified on a physical
+`philips.light.sread1` running firmware `1.3.0`.
+
 ## License
 
-MIT
+Released under the [MIT License](LICENSE).
