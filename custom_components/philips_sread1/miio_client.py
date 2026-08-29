@@ -353,8 +353,9 @@ class PhilipsSread1MiIOClient:
             is_on=power == "on",
             brightness=brightness,
             # The firmware reports ambstatus as a remembered request even when
-            # primary power is off; the physical ambient output is then dark.
-            ambient_is_on=ambient_power == "on" and power == "on",
+            # primary power is off. The entity combines this with power when it
+            # reports the effective physical ambient state.
+            ambient_is_on=ambient_power == "on",
             ambient_brightness=ambient_brightness,
             automatic_brightness_is_on=eyecare == "on",
         )

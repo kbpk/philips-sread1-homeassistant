@@ -105,7 +105,9 @@ class PhilipsSread1AmbientLight(PhilipsSread1Entity, LightEntity):
     @override
     def is_on(self) -> bool:
         """Return whether the ambient/back light is on."""
-        return self.coordinator.data.ambient_is_on
+        # ambstatus is retained by firmware while primary power is off, but the
+        # physical ambient output is dark without the primary supply.
+        return self.coordinator.data.is_on and self.coordinator.data.ambient_is_on
 
     @property
     @override

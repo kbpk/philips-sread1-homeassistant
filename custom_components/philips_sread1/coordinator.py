@@ -127,9 +127,6 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             replace(
                 self.data,
                 is_on=turn_on,
-                # The primary output is the hardware supply for ambient light;
-                # ambstatus can remain logically on while the lamp is dark.
-                ambient_is_on=turn_on and self.data.ambient_is_on,
             )
         )
 
@@ -152,7 +149,8 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
 
     async def async_set_ambient_power(self, turn_on: bool) -> None:
         """Set ambient power while respecting the primary-light coupling."""
-        if turn_on == self.data.ambient_is_on:
+        ambient_is_effectively_on = self.data.is_on and self.data.ambient_is_on
+        if turn_on == ambient_is_effectively_on:
             return
 
         main_was_on = self.data.is_on
