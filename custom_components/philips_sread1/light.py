@@ -145,7 +145,9 @@ class PhilipsSread1AmbientLight(PhilipsSread1Entity, LightEntity):
             await self.coordinator.async_set_ambient_brightness(
                 _native_brightness(kwargs)
             )
-            if not self.coordinator.data.ambient_is_on:
+            # The entity can be effectively off while firmware still remembers
+            # ambstatus=on. In that state enable_amb is still needed to wake it.
+            if not self.is_on:
                 await self.coordinator.async_set_ambient_power(True)
             return
         await self.coordinator.async_set_ambient_power(True)

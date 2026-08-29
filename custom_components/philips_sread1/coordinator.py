@@ -154,7 +154,11 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
     async def async_set_ambient_power(self, turn_on: bool) -> None:
         """Set ambient power while respecting the primary-light coupling."""
         ambient_is_effectively_on = self.data.is_on and self.data.ambient_is_on
-        if turn_on == ambient_is_effectively_on:
+        if turn_on and ambient_is_effectively_on:
+            return
+        # OFF must clear the firmware's remembered ambstatus even when the
+        # primary supply already makes the physical ambient output dark.
+        if not turn_on and not self.data.ambient_is_on:
             return
 
         main_was_on = self.data.is_on
