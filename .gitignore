@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.coverage
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+.DS_Store
+.idea/
+.vscode/
+.philips_sread1_token
