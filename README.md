@@ -17,8 +17,10 @@ use or depend on `python-miio`.
 - Ambient/back light brightness control while EyeCare is disabled
 - EyeCare automatic-brightness mode control and state
 - Three attempts for transient UDP timeouts and socket failures
+- One-second handshake timeout for fast recovery from dropped UDP handshakes
 - UI configuration through a Home Assistant Config Flow
-- Polling every 15 seconds and an immediate state refresh after commands
+- Polling every 15 seconds, including changes made with the physical controls
+- Immediate Home Assistant state updates after acknowledged commands
 
 Smart night light, fixed scenes, eye-fatigue reminders, and delayed off are not
 currently exposed as Home Assistant entities.
@@ -140,6 +142,10 @@ Xiaomi cloud.
   block on TCP/UDP port `53`. Blocking all gateway or LAN access by mistake will
   also block DHCP or local MiIO and make the lamp unavailable.
 - Avoid changing the lamp IP by creating a DHCP reservation.
+- Commands update Home Assistant immediately after the lamp acknowledges them;
+  they do not trigger a redundant `get_prop` transaction. Changes made with the
+  lamp's physical controls are detected by the next poll, normally within 15
+  seconds.
 - Transient handshake/request timeouts and socket failures are retried up to
   three times with a fresh handshake and request ID. If all attempts fail, the
   entity becomes unavailable; later coordinator polls can recover automatically.
