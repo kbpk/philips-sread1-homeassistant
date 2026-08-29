@@ -31,6 +31,8 @@ from .const import (
     METHOD_SET_EYECARE,
     METHOD_SET_POWER,
     MIIO_PORT,
+    MIIO_REQUEST_ATTEMPTS,
+    MIIO_RETRY_DELAY_SECONDS,
     MIIO_TIMEOUT,
     SREAD1_STATUS_PROPERTIES,
 )
@@ -236,6 +238,8 @@ class PhilipsSread1MiIOClient:
         *,
         port: int = MIIO_PORT,
         timeout: float = MIIO_TIMEOUT,
+        request_attempts: int = MIIO_REQUEST_ATTEMPTS,
+        retry_delay: float = MIIO_RETRY_DELAY_SECONDS,
     ) -> None:
         """Initialize the client and validate the token without logging it."""
         self.host = host.strip()
@@ -259,10 +263,16 @@ class PhilipsSread1MiIOClient:
 
         if len(token_bytes) != 16:
             raise ValueError("MiIO token must contain exactly 16 bytes")
+        if request_attempts < 1:
+            raise ValueError("MiIO request attempts must be at least one")
+        if retry_delay < 0:
+            raise ValueError("MiIO retry delay must not be negative")
 
         self._token = token_bytes
         self._port = port
         self._timeout = timeout
+        self._request_attempts = request_attempts
+        self._retry_delay = retry_delay
         self._request_id = secrets.randbelow(8999) + 1
         self._request_lock = asyncio.Lock()
         self._device_id: bytes | None = None
@@ -282,19 +292,41 @@ class PhilipsSread1MiIOClient:
     async def async_request(
         self, method: str, params: Sequence[Any] | dict[str, Any] | None = None
     ) -> Any:
-        """Send one MiIO command after refreshing device ID and timestamp."""
+        """Send a MiIO command, retrying only transient transport failures."""
+        serialized_params = (
+            list(params)
+            if isinstance(params, Sequence) and not isinstance(params, str)
+            else params
+        )
         async with self._request_lock:
-            request_id = self._next_request_id()
-            return await asyncio.to_thread(
-                self._request_sync,
-                method,
-                (
-                    list(params)
-                    if isinstance(params, Sequence) and not isinstance(params, str)
-                    else params
-                ),
-                request_id,
-            )
+            for attempt in range(1, self._request_attempts + 1):
+                request_id = self._next_request_id()
+                try:
+                    return await asyncio.to_thread(
+                        self._request_sync,
+                        method,
+                        serialized_params,
+                        request_id,
+                    )
+                except (MiIOTimeoutError, MiIOConnectionError) as err:
+                    if attempt == self._request_attempts:
+                        raise
+
+                    delay = self._retry_delay * attempt
+                    _LOGGER.debug(
+                        "Retrying transient MiIO failure host=%s method=%s "
+                        "request_id=%s error=%s next_attempt=%s/%s delay=%.2fs",
+                        self.host,
+                        method,
+                        request_id,
+                        type(err).__name__,
+                        attempt + 1,
+                        self._request_attempts,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+
+        raise RuntimeError("MiIO request retry loop exited unexpectedly")
 
     async def async_get_state(self) -> PhilipsSread1State:
         """Read both light sources and automatic-brightness mode."""
