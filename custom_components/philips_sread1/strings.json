@@ -4,14 +4,14 @@
     "step": {
       "user": {
         "title": "Connect Philips EyeCare Smart Lamp 2",
-        "description": "Enter the local address and the 32-character hexadecimal MiIO token for your philips.light.sread1 lamp.",
+        "description": "Enter the lamp's local address and its 32-character hexadecimal MiIO token.",
         "data": {
           "host": "Host or IP address",
           "token": "MiIO token"
         },
         "data_description": {
           "host": "Local IPv4 address or hostname of the lamp.",
-          "token": "Exactly 32 hexadecimal characters. The token is stored in the Home Assistant config entry."
+          "token": "Enter exactly 32 hexadecimal characters. Home Assistant stores the token in the integration's config entry."
         }
       }
     },
@@ -30,7 +30,7 @@
     "step": {
       "init": {
         "title": "Communication settings",
-        "description": "Adjust polling and MiIO retry behavior. Defaults are recommended for most networks.",
+        "description": "Adjust how often Home Assistant polls the lamp and retries MiIO requests. The default settings work well for most networks.",
         "data": {
           "poll_interval": "Polling interval (seconds)",
           "request_timeout": "Request timeout (seconds)",
@@ -40,12 +40,12 @@
           "availability_grace": "Availability grace period (seconds)"
         },
         "data_description": {
-          "poll_interval": "How often to read the lamp state. Range: 5–300 seconds.",
-          "request_timeout": "Maximum wait for an authenticated response. Range: 1–30 seconds.",
-          "handshake_timeout": "Maximum wait for the UDP handshake. Range: 0.2–10 seconds.",
-          "request_attempts": "Number of attempts for transient transport failures. Range: 1–5.",
-          "retry_delay": "Delay between transient retries. Range: 0–5 seconds.",
-          "availability_grace": "Keep the last state during communication gaps. Range: 0–600 seconds."
+          "poll_interval": "How often to read the lamp state. Range: 5-300 seconds.",
+          "request_timeout": "Maximum wait for an authenticated response. Range: 1-30 seconds.",
+          "handshake_timeout": "Maximum wait for the UDP handshake. Range: 0.2-10 seconds.",
+          "request_attempts": "Number of attempts after temporary communication failures. Range: 1-5.",
+          "retry_delay": "Delay between retries. Range: 0-5 seconds.",
+          "availability_grace": "How long to keep the last known state during communication problems. Range: 0-600 seconds."
         }
       }
     }

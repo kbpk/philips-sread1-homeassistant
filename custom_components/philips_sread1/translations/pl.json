@@ -1,0 +1,68 @@
+{
+  "title": "Philips EyeCare Smart Lamp 2",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Połącz z Philips EyeCare Smart Lamp 2",
+        "description": "Wprowadź lokalny adres lampy i jej 32-znakowy token MiIO w zapisie szesnastkowym.",
+        "data": {
+          "host": "Host lub adres IP",
+          "token": "Token MiIO"
+        },
+        "data_description": {
+          "host": "Lokalny adres IPv4 lub nazwa hosta lampy.",
+          "token": "Wprowadź dokładnie 32 znaki szesnastkowe. Home Assistant zapisuje token w konfiguracji integracji."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie można połączyć się z lampą. Sprawdź jej adres, dostępność w sieci oraz port UDP 54321.",
+      "invalid_host": "Wprowadź nazwę hosta lub adres IP.",
+      "invalid_response": "Urządzenie odpowiedziało, ale odpowiedź nie jest prawidłowa dla Philips EyeCare Smart Lamp 2.",
+      "invalid_token": "Token MiIO jest nieprawidłowy lub lampa odrzuciła uwierzytelnione żądanie.",
+      "unknown": "Wystąpił nieoczekiwany błąd. Sprawdź dzienniki Home Assistanta."
+    },
+    "abort": {
+      "already_configured": "Ta lampa jest już skonfigurowana."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ustawienia komunikacji",
+        "description": "Dostosuj częstotliwość odpytywania lampy i ponawianie żądań MiIO. Ustawienia domyślne sprawdzają się w większości sieci.",
+        "data": {
+          "poll_interval": "Częstotliwość odpytywania (sekundy)",
+          "request_timeout": "Limit czasu żądania (sekundy)",
+          "handshake_timeout": "Limit czasu uzgadniania połączenia (sekundy)",
+          "request_attempts": "Liczba prób każdego żądania",
+          "retry_delay": "Opóźnienie ponowienia (sekundy)",
+          "availability_grace": "Okres podtrzymania dostępności (sekundy)"
+        },
+        "data_description": {
+          "poll_interval": "Jak często odczytywać stan lampki. Zakres: 5-300 sekund.",
+          "request_timeout": "Maksymalny czas oczekiwania na uwierzytelnioną odpowiedź. Zakres: 1-30 sekund.",
+          "handshake_timeout": "Maksymalny czas oczekiwania na uzgodnienie połączenia UDP. Zakres: 0,2-10 sekund.",
+          "request_attempts": "Liczba prób po chwilowych problemach z komunikacją. Zakres: 1-5.",
+          "retry_delay": "Opóźnienie pomiędzy ponowieniami. Zakres: 0-5 sekund.",
+          "availability_grace": "Jak długo zachować ostatni znany stan podczas problemów z komunikacją. Zakres: 0-600 sekund."
+        }
+      }
+    }
+  },
+  "entity": {
+    "light": {
+      "main_light": {
+        "name": "Światło główne"
+      },
+      "ambient_light": {
+        "name": "Światło tylne"
+      }
+    },
+    "switch": {
+      "automatic_brightness": {
+        "name": "Automatyczna jasność (EyeCare)"
+      }
+    }
+  }
+}
