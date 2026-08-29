@@ -126,24 +126,59 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         self.async_set_updated_data(replace(self.data, is_on=turn_on))
 
     async def async_set_brightness(self, brightness: int) -> None:
-        """Set brightness and publish the acknowledged state."""
+        """Set manual brightness and publish the resulting EyeCare state."""
         try:
             await self.client.async_set_brightness(brightness)
         except (MiIOError, TypeError, ValueError) as err:
             raise HomeAssistantError(f"Unable to set {NAME} brightness: {err}") from err
         self._record_successful_communication()
-        self.async_set_updated_data(replace(self.data, brightness=brightness))
+        # Firmware 1.3.0 leaves automatic mode whenever a manual primary
+        # brightness is accepted.
+        self.async_set_updated_data(
+            replace(
+                self.data,
+                brightness=brightness,
+                automatic_brightness_is_on=False,
+            )
+        )
 
     async def async_set_ambient_power(self, turn_on: bool) -> None:
-        """Set ambient/back light power and publish the acknowledged state."""
+        """Set ambient power while preserving the primary-light state."""
+        if turn_on == self.data.ambient_is_on:
+            return
+
+        main_was_on = self.data.is_on
         try:
             await self.client.async_set_ambient_power(turn_on)
         except MiIOError as err:
             raise HomeAssistantError(
                 f"Unable to set {NAME} ambient power: {err}"
             ) from err
+
+        # enable_amb("on") always wakes the primary light on firmware 1.3.0.
+        # A following set_power("off") leaves ambstatus on, which gives Home
+        # Assistant genuinely independent main and ambient entities.
+        if turn_on and not main_was_on:
+            try:
+                await self.client.async_set_power(False)
+            except MiIOError as err:
+                self._record_successful_communication()
+                self.async_set_updated_data(
+                    replace(self.data, ambient_is_on=True, is_on=True)
+                )
+                raise HomeAssistantError(
+                    f"{NAME} enabled ambient light but could not restore the "
+                    f"primary light state: {err}"
+                ) from err
+
         self._record_successful_communication()
-        self.async_set_updated_data(replace(self.data, ambient_is_on=turn_on))
+        self.async_set_updated_data(
+            replace(
+                self.data,
+                ambient_is_on=turn_on,
+                is_on=main_was_on,
+            )
+        )
 
     async def async_set_ambient_brightness(self, brightness: int) -> None:
         """Set ambient/back light brightness and publish acknowledged state."""
@@ -157,14 +192,58 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         self.async_set_updated_data(replace(self.data, ambient_brightness=brightness))
 
     async def async_set_automatic_brightness(self, turn_on: bool) -> None:
-        """Set EyeCare automatic brightness and publish acknowledged state."""
+        """Set EyeCare while preserving the primary-light power state."""
+        if turn_on == self.data.automatic_brightness_is_on:
+            return
+
+        main_was_on = self.data.is_on
+
+        # set_eyecare("off") cannot disable the mode while primary power is
+        # off: the first call merely wakes the primary output. Wake explicitly
+        # so the following mode command has its documented effect.
+        if not turn_on and not main_was_on:
+            try:
+                await self.client.async_set_power(True)
+            except MiIOError as err:
+                raise HomeAssistantError(
+                    f"Unable to wake {NAME} before disabling automatic "
+                    f"brightness: {err}"
+                ) from err
+
         try:
             await self.client.async_set_automatic_brightness(turn_on)
         except MiIOError as err:
+            if not turn_on and not main_was_on:
+                self._record_successful_communication()
+                self.async_set_updated_data(replace(self.data, is_on=True))
             raise HomeAssistantError(
                 f"Unable to set {NAME} automatic brightness: {err}"
             ) from err
+
+        # Both EyeCare transitions wake primary power. Restore an originally
+        # off main light; set_power does not alter ambient or EyeCare state.
+        if not main_was_on:
+            try:
+                await self.client.async_set_power(False)
+            except MiIOError as err:
+                self._record_successful_communication()
+                self.async_set_updated_data(
+                    replace(
+                        self.data,
+                        automatic_brightness_is_on=turn_on,
+                        is_on=True,
+                    )
+                )
+                raise HomeAssistantError(
+                    f"{NAME} changed automatic brightness but could not restore "
+                    f"the primary light state: {err}"
+                ) from err
+
         self._record_successful_communication()
         self.async_set_updated_data(
-            replace(self.data, automatic_brightness_is_on=turn_on)
+            replace(
+                self.data,
+                automatic_brightness_is_on=turn_on,
+                is_on=main_was_on,
+            )
         )
