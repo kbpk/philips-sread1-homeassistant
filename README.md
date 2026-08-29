@@ -16,11 +16,18 @@ use or depend on `python-miio`.
 - Independent ambient/back light power and state
 - Independent ambient/back light brightness control and state
 - EyeCare automatic-brightness mode control and state
+- Three attempts for transient UDP timeouts and socket failures
 - UI configuration through a Home Assistant Config Flow
 - Polling every 15 seconds and an immediate state refresh after commands
 
 Smart night light, fixed scenes, eye-fatigue reminders, and delayed off are not
 currently exposed as Home Assistant entities.
+
+On the tested `philips.light.sread1` firmware `1.3.0`, EyeCare automatically
+changes the primary light's `bright` value. The ambient light remains a separate
+channel: its `ambvalue` was not changed by EyeCare, and a manual ambient setting
+remained active while EyeCare was enabled. Ambient brightness accepts the native
+range `1..100`; the lamp rejects `0`.
 
 ## Requirements
 
@@ -131,8 +138,9 @@ Xiaomi cloud.
   block on TCP/UDP port `53`. Blocking all gateway or LAN access by mistake will
   also block DHCP or local MiIO and make the lamp unavailable.
 - Avoid changing the lamp IP by creating a DHCP reservation.
-- A single timeout marks the entity unavailable; later coordinator polls perform
-  a fresh handshake and can recover automatically.
+- Transient handshake/request timeouts and socket failures are retried up to
+  three times with a fresh handshake and request ID. If all attempts fail, the
+  entity becomes unavailable; later coordinator polls can recover automatically.
 - If HACS does not offer a new version, confirm that the GitHub tag has a full
   GitHub Release. A tag alone is not enough for release-based HACS updates.
 
