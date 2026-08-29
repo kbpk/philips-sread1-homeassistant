@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 import getpass
-from pathlib import Path
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from provision_and_test import MiIOError, MiIOTimeout, request, response_result
@@ -49,9 +49,9 @@ class LampState:
         if not isinstance(result, list) or len(result) < 6:
             raise MiIOError(f"unexpected get_prop result: {result!r}")
 
-        power, brightness, _notify, ambient_power, ambient_brightness, eyecare = (
-            result[:6]
-        )
+        power, brightness, _notify, ambient_power, ambient_brightness, eyecare = result[
+            :6
+        ]
         for name, value in (
             ("power", power),
             ("ambstatus", ambient_power),
@@ -247,9 +247,7 @@ def restore_state(host: str, token: bytes, initial: LampState) -> LampState:
         "restore ambient brightness",
     )
     set_value(host, token, "set_eyecare", initial.eyecare, "restore EyeCare")
-    set_value(
-        host, token, "enable_amb", initial.ambient_power, "restore ambient mode"
-    )
+    set_value(host, token, "enable_amb", initial.ambient_power, "restore ambient mode")
     set_value(host, token, "set_power", initial.power, "restore primary power")
     restored = get_state(host, token)
     print(f"  restored: {restored.summary()}")

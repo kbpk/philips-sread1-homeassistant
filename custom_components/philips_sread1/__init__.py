@@ -33,9 +33,7 @@ async def async_setup_entry(
         entry.data[CONF_HOST],
         entry.data[CONF_TOKEN],
         timeout=options.get(CONF_REQUEST_TIMEOUT, MIIO_TIMEOUT),
-        handshake_timeout=options.get(
-            CONF_HANDSHAKE_TIMEOUT, MIIO_HANDSHAKE_TIMEOUT
-        ),
+        handshake_timeout=options.get(CONF_HANDSHAKE_TIMEOUT, MIIO_HANDSHAKE_TIMEOUT),
         request_attempts=options.get(CONF_REQUEST_ATTEMPTS, MIIO_REQUEST_ATTEMPTS),
         retry_delay=options.get(CONF_RETRY_DELAY, MIIO_RETRY_DELAY_SECONDS),
     )

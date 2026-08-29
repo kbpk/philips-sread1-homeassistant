@@ -24,14 +24,14 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from .const import (
     DEVICE_BRIGHTNESS_MAX,
     DEVICE_BRIGHTNESS_MIN,
-    MiIOPowerState,
     MIIO_HANDSHAKE_TIMEOUT,
     MIIO_PORT,
     MIIO_REQUEST_ATTEMPTS,
     MIIO_RETRY_DELAY_SECONDS,
     MIIO_TIMEOUT,
-    Sread1Method,
     SREAD1_STATUS_PROPERTIES,
+    MiIOPowerState,
+    Sread1Method,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -161,9 +161,7 @@ class PhilipsSread1Properties:
         try:
             return MiIOPowerState(value)
         except (TypeError, ValueError) as err:
-            raise MiIOProtocolError(
-                f"{name} property has an unexpected value"
-            ) from err
+            raise MiIOProtocolError(f"{name} property has an unexpected value") from err
 
     @staticmethod
     def _parse_brightness(value: Any, name: str) -> int:

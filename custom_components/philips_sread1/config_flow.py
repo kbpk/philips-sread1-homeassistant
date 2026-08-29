@@ -140,15 +140,11 @@ class PhilipsSread1OptionsFlow(OptionsFlowWithReload):
                 ): vol.All(vol.Coerce(float), vol.Range(min=1, max=30)),
                 vol.Required(
                     CONF_HANDSHAKE_TIMEOUT,
-                    default=options.get(
-                        CONF_HANDSHAKE_TIMEOUT, MIIO_HANDSHAKE_TIMEOUT
-                    ),
+                    default=options.get(CONF_HANDSHAKE_TIMEOUT, MIIO_HANDSHAKE_TIMEOUT),
                 ): vol.All(vol.Coerce(float), vol.Range(min=0.2, max=10)),
                 vol.Required(
                     CONF_REQUEST_ATTEMPTS,
-                    default=options.get(
-                        CONF_REQUEST_ATTEMPTS, MIIO_REQUEST_ATTEMPTS
-                    ),
+                    default=options.get(CONF_REQUEST_ATTEMPTS, MIIO_REQUEST_ATTEMPTS),
                 ): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
                 vol.Required(
                     CONF_RETRY_DELAY,
