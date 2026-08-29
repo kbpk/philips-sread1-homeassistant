@@ -14,6 +14,13 @@ MIIO_RETRY_DELAY_SECONDS: Final = 0.35
 POLL_INTERVAL_SECONDS: Final = 15
 POLL_FAILURE_GRACE_SECONDS: Final = 60
 
+CONF_POLL_INTERVAL: Final = "poll_interval"
+CONF_REQUEST_TIMEOUT: Final = "request_timeout"
+CONF_HANDSHAKE_TIMEOUT: Final = "handshake_timeout"
+CONF_REQUEST_ATTEMPTS: Final = "request_attempts"
+CONF_RETRY_DELAY: Final = "retry_delay"
+CONF_AVAILABILITY_GRACE: Final = "availability_grace"
+
 PROPERTY_POWER: Final = "power"
 PROPERTY_BRIGHTNESS: Final = "bright"
 PROPERTY_AMBIENT_POWER: Final = "ambstatus"

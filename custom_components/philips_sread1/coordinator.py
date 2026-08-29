@@ -39,6 +39,9 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         hass: HomeAssistant,
         config_entry: PhilipsSread1ConfigEntry,
         client: PhilipsSread1MiIOClient,
+        *,
+        poll_interval: float = POLL_INTERVAL_SECONDS,
+        availability_grace: float = POLL_FAILURE_GRACE_SECONDS,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -46,10 +49,11 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             _LOGGER,
             config_entry=config_entry,
             name=DOMAIN,
-            update_interval=timedelta(seconds=POLL_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=poll_interval),
             always_update=False,
         )
         self.client = client
+        self._availability_grace = availability_grace
         self._last_device_update_monotonic: float | None = None
         self._consecutive_update_failures = 0
 
@@ -72,7 +76,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             if (
                 self.data is not None
                 and stale_age is not None
-                and stale_age <= POLL_FAILURE_GRACE_SECONDS
+                and stale_age <= self._availability_grace
             ):
                 log = (
                     _LOGGER.warning
@@ -86,7 +90,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
                     self.client.host,
                     self._consecutive_update_failures,
                     stale_age,
-                    POLL_FAILURE_GRACE_SECONDS,
+                    self._availability_grace,
                     type(err).__name__,
                 )
                 return self.data

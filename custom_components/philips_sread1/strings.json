@@ -26,6 +26,30 @@
       "already_configured": "This lamp is already configured."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Communication settings",
+        "description": "Adjust polling and MiIO retry behavior. Defaults are recommended for most networks.",
+        "data": {
+          "poll_interval": "Polling interval (seconds)",
+          "request_timeout": "Request timeout (seconds)",
+          "handshake_timeout": "Handshake timeout (seconds)",
+          "request_attempts": "Attempts per request",
+          "retry_delay": "Retry delay (seconds)",
+          "availability_grace": "Availability grace period (seconds)"
+        },
+        "data_description": {
+          "poll_interval": "How often to read the lamp state. Range: 5–300 seconds.",
+          "request_timeout": "Maximum wait for an authenticated response. Range: 1–30 seconds.",
+          "handshake_timeout": "Maximum wait for the UDP handshake. Range: 0.2–10 seconds.",
+          "request_attempts": "Number of attempts for transient transport failures. Range: 1–5.",
+          "retry_delay": "Delay between transient retries. Range: 0–5 seconds.",
+          "availability_grace": "Keep the last state during communication gaps. Range: 0–600 seconds."
+        }
+      }
+    }
+  },
   "entity": {
     "light": {
       "main_light": {

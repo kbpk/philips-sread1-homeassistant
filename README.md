@@ -80,6 +80,22 @@ AP-derived token is replaced after the lamp gets DNS/cloud access.
 HACS installs the directory under `/config/custom_components/philips_sread1`
 and can update it from later GitHub Releases.
 
+## Communication settings
+
+After installation, open the integration's **Configure** action to adjust the
+optional transport settings. The defaults are recommended for most networks:
+
+- Polling interval: `15` seconds (`5–300`)
+- Request timeout: `5` seconds (`1–30`)
+- Handshake timeout: `1` second (`0.2–10`)
+- Attempts per request: `3` (`1–5`)
+- Retry delay: `0.35` seconds (`0–5`)
+- Availability grace period: `60` seconds (`0–600`)
+
+Changing these values automatically reloads the integration. Host and token are
+not part of this tuning form; they remain in the config entry created by the
+initial setup flow. No YAML configuration is required.
+
 ## Updating with HACS
 
 When HACS shows an update for **Philips EyeCare Smart Lamp 2**, open the

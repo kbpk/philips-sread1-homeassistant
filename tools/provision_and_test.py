@@ -24,7 +24,6 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 AP_HOST = "192.168.4.1"
-DEFAULT_LAN_HOST = "192.168.1.202"
 PORT = 54321
 SOCKET_TIMEOUT = 3.0
 LAN_WAIT_SECONDS = 240
@@ -260,9 +259,9 @@ def prompt() -> tuple[str, str, str, int | None, bool]:
     if not ssid:
         raise SystemExit("SSID must not be empty")
     password = getpass.getpass("Target Wi-Fi password (hidden): ")
-    lan_host = input(f"Expected lamp LAN IP [{DEFAULT_LAN_HOST}]: ").strip()
+    lan_host = input("Expected lamp LAN IP or hostname (required): ").strip()
     if not lan_host:
-        lan_host = DEFAULT_LAN_HOST
+        raise SystemExit("Lamp LAN IP or hostname must not be empty")
     uid_text = input("Mi Home numeric UID [auto/0]: ").strip()
     if uid_text and (not uid_text.isdecimal() or int(uid_text) < 0):
         raise SystemExit("UID must be a non-negative decimal number")

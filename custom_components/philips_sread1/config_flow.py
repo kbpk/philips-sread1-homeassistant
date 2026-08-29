@@ -6,11 +6,32 @@ import logging
 from typing import Any, override
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+    OptionsFlowWithReload,
+)
 from homeassistant.const import CONF_HOST, CONF_TOKEN
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import DOMAIN, MIIO_TIMEOUT, NAME
+from .const import (
+    CONF_AVAILABILITY_GRACE,
+    CONF_HANDSHAKE_TIMEOUT,
+    CONF_POLL_INTERVAL,
+    CONF_REQUEST_ATTEMPTS,
+    CONF_REQUEST_TIMEOUT,
+    CONF_RETRY_DELAY,
+    DOMAIN,
+    MIIO_HANDSHAKE_TIMEOUT,
+    MIIO_REQUEST_ATTEMPTS,
+    MIIO_RETRY_DELAY_SECONDS,
+    MIIO_TIMEOUT,
+    NAME,
+    POLL_FAILURE_GRACE_SECONDS,
+    POLL_INTERVAL_SECONDS,
+)
 from .miio_client import (
     MiIOConnectionError,
     MiIOHandshakeTimeoutError,
@@ -27,6 +48,12 @@ class PhilipsSread1ConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Philips SREAD1."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(_config_entry: Any) -> OptionsFlow:
+        """Return the optional communication-settings flow."""
+        return PhilipsSread1OptionsFlow()
 
     @override
     async def async_step_user(
@@ -88,3 +115,51 @@ class PhilipsSread1ConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+
+class PhilipsSread1OptionsFlow(OptionsFlowWithReload):
+    """Configure transport and polling behavior for an existing lamp."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle communication settings."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        options = self.config_entry.options
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_POLL_INTERVAL,
+                    default=options.get(CONF_POLL_INTERVAL, POLL_INTERVAL_SECONDS),
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=300)),
+                vol.Required(
+                    CONF_REQUEST_TIMEOUT,
+                    default=options.get(CONF_REQUEST_TIMEOUT, MIIO_TIMEOUT),
+                ): vol.All(vol.Coerce(float), vol.Range(min=1, max=30)),
+                vol.Required(
+                    CONF_HANDSHAKE_TIMEOUT,
+                    default=options.get(
+                        CONF_HANDSHAKE_TIMEOUT, MIIO_HANDSHAKE_TIMEOUT
+                    ),
+                ): vol.All(vol.Coerce(float), vol.Range(min=0.2, max=10)),
+                vol.Required(
+                    CONF_REQUEST_ATTEMPTS,
+                    default=options.get(
+                        CONF_REQUEST_ATTEMPTS, MIIO_REQUEST_ATTEMPTS
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=5)),
+                vol.Required(
+                    CONF_RETRY_DELAY,
+                    default=options.get(CONF_RETRY_DELAY, MIIO_RETRY_DELAY_SECONDS),
+                ): vol.All(vol.Coerce(float), vol.Range(min=0, max=5)),
+                vol.Required(
+                    CONF_AVAILABILITY_GRACE,
+                    default=options.get(
+                        CONF_AVAILABILITY_GRACE, POLL_FAILURE_GRACE_SECONDS
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=600)),
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)
