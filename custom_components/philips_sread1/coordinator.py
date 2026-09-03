@@ -14,6 +14,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
     DOMAIN,
     NAME,
+    POLL_BACKOFF_INTERVAL_SECONDS,
     POLL_FAILURE_GRACE_SECONDS,
     POLL_INTERVAL_SECONDS,
 )
@@ -53,6 +54,10 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             always_update=False,
         )
         self.client = client
+        self._idle_poll_interval = timedelta(seconds=poll_interval)
+        self._backoff_poll_interval = timedelta(
+            seconds=max(poll_interval, POLL_BACKOFF_INTERVAL_SECONDS)
+        )
         self._availability_grace = availability_grace
         self._last_device_update_monotonic: float | None = None
         self._consecutive_update_failures = 0
@@ -61,12 +66,20 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
     async def _async_update_data(self) -> PhilipsSread1State:
         """Fetch the current state of all supported lamp features."""
         try:
-            state = await self.client.async_get_state()
+            # Frequent background polls get one bounded attempt. Retrying the
+            # whole handshake/request exchange here can hold the client's lock
+            # long enough to make a user command wait; the next scheduled poll
+            # already provides the retry and failures use a slower interval.
+            state = await self.client.async_get_state(attempts=1)
         except MiIOInvalidTokenError as err:
             # Authentication failures are not transient connectivity problems and
             # must never be hidden behind cached state.
+            self.update_interval = self._backoff_poll_interval
             raise UpdateFailed(f"Unable to update {NAME}: {err}") from err
         except MiIOError as err:
+            # A busy or temporarily unreachable ESP8266 benefits from the same
+            # breathing room used after commands.
+            self.update_interval = self._backoff_poll_interval
             self._consecutive_update_failures += 1
             last_update = self._last_device_update_monotonic
             stale_age = (
@@ -106,6 +119,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             ) from err
 
         self._record_successful_communication()
+        self.update_interval = self._idle_poll_interval
         return state
 
     def _record_successful_communication(self) -> None:
@@ -120,19 +134,19 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         self._consecutive_update_failures = 0
         self._last_device_update_monotonic = time.monotonic()
 
+    def _publish_command_state(self, state: PhilipsSread1State) -> None:
+        """Publish acknowledged state and defer the next reconciliation poll."""
+        self._record_successful_communication()
+        self.update_interval = self._backoff_poll_interval
+        self.async_set_updated_data(state)
+
     async def async_set_power(self, turn_on: bool) -> None:
         """Set power and publish the acknowledged state without another request."""
         try:
             await self.client.async_set_power(turn_on)
         except MiIOError as err:
             raise HomeAssistantError(f"Unable to set {NAME} power: {err}") from err
-        self._record_successful_communication()
-        self.async_set_updated_data(
-            replace(
-                self.data,
-                is_on=turn_on,
-            )
-        )
+        self._publish_command_state(replace(self.data, is_on=turn_on))
 
     async def async_set_brightness(self, brightness: int) -> None:
         """Set manual brightness and publish the resulting EyeCare state."""
@@ -140,10 +154,9 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             await self.client.async_set_brightness(brightness)
         except (MiIOError, TypeError, ValueError) as err:
             raise HomeAssistantError(f"Unable to set {NAME} brightness: {err}") from err
-        self._record_successful_communication()
         # Firmware 1.3.0 leaves automatic mode whenever a manual primary
         # brightness is accepted.
-        self.async_set_updated_data(
+        self._publish_command_state(
             replace(
                 self.data,
                 brightness=brightness,
@@ -169,8 +182,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
                 f"Unable to set {NAME} ambient power: {err}"
             ) from err
 
-        self._record_successful_communication()
-        self.async_set_updated_data(
+        self._publish_command_state(
             replace(
                 self.data,
                 ambient_is_on=turn_on,
@@ -188,8 +200,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             raise HomeAssistantError(
                 f"Unable to set {NAME} ambient brightness: {err}"
             ) from err
-        self._record_successful_communication()
-        self.async_set_updated_data(replace(self.data, ambient_brightness=brightness))
+        self._publish_command_state(replace(self.data, ambient_brightness=brightness))
 
     async def async_set_automatic_brightness(self, turn_on: bool) -> None:
         """Set EyeCare while preserving the primary-light power state."""
@@ -214,8 +225,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             await self.client.async_set_automatic_brightness(turn_on)
         except MiIOError as err:
             if not turn_on and not main_was_on:
-                self._record_successful_communication()
-                self.async_set_updated_data(replace(self.data, is_on=True))
+                self._publish_command_state(replace(self.data, is_on=True))
             raise HomeAssistantError(
                 f"Unable to set {NAME} automatic brightness: {err}"
             ) from err
@@ -230,8 +240,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
             try:
                 await self.client.async_set_power(False)
             except MiIOError as err:
-                self._record_successful_communication()
-                self.async_set_updated_data(
+                self._publish_command_state(
                     replace(
                         self.data,
                         automatic_brightness_is_on=turn_on,
@@ -246,11 +255,24 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         else:
             final_main_state = main_was_on
 
-        self._record_successful_communication()
-        self.async_set_updated_data(
+        self._publish_command_state(
             replace(
                 self.data,
                 automatic_brightness_is_on=turn_on,
                 is_on=final_main_state,
             )
         )
+
+    async def async_set_smart_night_light(self, turn_on: bool) -> None:
+        """Set touch-triggered smart night light and publish its state."""
+        if turn_on == self.data.smart_night_light_is_on:
+            return
+
+        try:
+            await self.client.async_set_smart_night_light(turn_on)
+        except MiIOError as err:
+            raise HomeAssistantError(
+                f"Unable to set {NAME} smart night light: {err}"
+            ) from err
+
+        self._publish_command_state(replace(self.data, smart_night_light_is_on=turn_on))

@@ -30,20 +30,20 @@
     "step": {
       "init": {
         "title": "Ustawienia komunikacji",
-        "description": "Dostosuj częstotliwość odpytywania lampy i ponawianie żądań MiIO. Ustawienia domyślne sprawdzają się w większości sieci.",
+        "description": "Dostosuj odpytywanie w spoczynku i ponawianie żądań MiIO. Po komendzie z Home Assistanta lub błędzie komunikacji odpytywanie automatycznie zwalnia, aby chronić lampkę.",
         "data": {
           "poll_interval": "Częstotliwość odpytywania (sekundy)",
           "request_timeout": "Limit czasu żądania (sekundy)",
           "handshake_timeout": "Limit czasu uzgadniania połączenia (sekundy)",
-          "request_attempts": "Liczba prób każdego żądania",
+          "request_attempts": "Liczba prób każdej komendy",
           "retry_delay": "Opóźnienie ponowienia (sekundy)",
           "availability_grace": "Okres podtrzymania dostępności (sekundy)"
         },
         "data_description": {
-          "poll_interval": "Jak często odczytywać stan lampki. Zakres: 5-300 sekund.",
+          "poll_interval": "Jak często odczytywać stan przy prawidłowej komunikacji, gdy Home Assistant nie wysłał właśnie komendy. Zakres: 5-300 sekund. Domyślnie: 5 sekund.",
           "request_timeout": "Maksymalny czas oczekiwania na uwierzytelnioną odpowiedź. Zakres: 1-30 sekund.",
           "handshake_timeout": "Maksymalny czas oczekiwania na uzgodnienie połączenia UDP. Zakres: 0,2-10 sekund.",
-          "request_attempts": "Liczba prób po chwilowych problemach z komunikacją. Zakres: 1-5.",
+          "request_attempts": "Liczba prób sprawdzenia konfiguracji i komend po chwilowych problemach z komunikacją. Odpytywanie w tle wykonuje jedną próbę, aby nie opóźniać komendy przez kilka cykli ponawiania. Zakres: 1-5.",
           "retry_delay": "Opóźnienie pomiędzy ponowieniami. Zakres: 0-5 sekund.",
           "availability_grace": "Jak długo zachować ostatni znany stan podczas problemów z komunikacją. Zakres: 0-600 sekund."
         }
@@ -62,6 +62,9 @@
     "switch": {
       "automatic_brightness": {
         "name": "Automatyczna jasność (EyeCare)"
+      },
+      "smart_night_light": {
+        "name": "Inteligentne światło nocne"
       }
     }
   }

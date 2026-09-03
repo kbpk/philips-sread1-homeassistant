@@ -13,13 +13,14 @@ on [`python-miio`](https://github.com/rytilahti/python-miio).
 - Primary light power and brightness
 - Ambient/back light power and manual brightness
 - EyeCare automatic-brightness mode
+- Smart night light triggered by touching the physical controls in darkness
 - State updates from the lamp, including changes made with its physical controls
 - UI configuration through a Home Assistant Config Flow
 - Configurable polling, timeouts, retries, and availability grace period
 - Immediate state updates after acknowledged commands
 
-Smart night light, fixed scenes, eye-fatigue reminders, and delayed off are not
-currently exposed as Home Assistant entities.
+Fixed scenes, eye-fatigue reminders, and delayed off are not currently exposed
+as Home Assistant entities.
 
 ## Important lamp behavior
 
@@ -27,6 +28,13 @@ The following behavior was confirmed on `philips.light.sread1` firmware `1.3.0`:
 
 - The ambient light cannot operate physically without primary power. Enabling
   ambient or EyeCare may therefore also wake the primary light.
+- With smart night light enabled (`bls=on`), touching a physical control while
+  the lamp is dark can temporarily illuminate the rear light. Firmware 1.3.0
+  reports `bls` as the feature setting but does not report this temporary output
+  as a separate current state, so Home Assistant continues to show both
+  controllable light entities as off. Disabling the feature with `enable_bl`
+  while that temporary light is active extinguishes it immediately without
+  changing `power` or `ambstatus`.
 - EyeCare controls ambient brightness automatically. While EyeCare is enabled,
   the ambient entity is exposed as ON/OFF without a manual brightness slider.
 - Changing primary brightness manually disables EyeCare.
@@ -169,12 +177,16 @@ Xiaomi cloud.
   also block DHCP or local MiIO and make the lamp unavailable.
 - Avoid changing the lamp IP by creating a DHCP reservation.
 - Commands update Home Assistant immediately after the lamp acknowledges them;
-  they do not trigger a redundant `get_prop` transaction. Changes made with the
-  lamp's physical controls are detected by the next poll, normally within 15
-  seconds.
-- By default, transient network failures are retried three times and the last
-  confirmed state is kept for up to 60 seconds. Later successful polls recover
-  automatically. These values can be changed through **Configure**.
+  they do not trigger a redundant `get_prop` transaction. While communication
+  is healthy, changes made with the physical controls are detected by the next
+  poll, normally within 5 seconds. After an HA command or a polling failure, the
+  next poll is delayed for at least 15 seconds so the ESP8266 has time to settle;
+  successful idle polling then returns to the configured interval.
+- By default, setup checks and commands retry transient network failures up to
+  three times. Background polls use one attempt and retry at the next scheduled
+  interval so they cannot hold the MiIO request lock through several cycles.
+  The last confirmed state is kept for up to 60 seconds and later successful
+  polls recover automatically. These values can be changed through **Configure**.
 - If HACS does not offer a new version, confirm that the GitHub tag has a full
   [GitHub Release](https://github.com/kbpk/philips-sread1-homeassistant/releases).
   A tag alone is not enough for release-based HACS updates.

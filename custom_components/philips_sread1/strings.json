@@ -30,20 +30,20 @@
     "step": {
       "init": {
         "title": "Communication settings",
-        "description": "Adjust how often Home Assistant polls the lamp and retries MiIO requests. The default settings work well for most networks.",
+        "description": "Adjust idle polling and MiIO retries. After a Home Assistant command or communication failure, polling automatically slows down to protect the lamp.",
         "data": {
           "poll_interval": "Polling interval (seconds)",
           "request_timeout": "Request timeout (seconds)",
           "handshake_timeout": "Handshake timeout (seconds)",
-          "request_attempts": "Attempts per request",
+          "request_attempts": "Attempts per command",
           "retry_delay": "Retry delay (seconds)",
           "availability_grace": "Availability grace period (seconds)"
         },
         "data_description": {
-          "poll_interval": "How often to read the lamp state. Range: 5-300 seconds.",
+          "poll_interval": "How often to read the lamp while communication is healthy and no Home Assistant command was just sent. Range: 5-300 seconds. The default is 5 seconds.",
           "request_timeout": "Maximum wait for an authenticated response. Range: 1-30 seconds.",
           "handshake_timeout": "Maximum wait for the UDP handshake. Range: 0.2-10 seconds.",
-          "request_attempts": "Number of attempts after temporary communication failures. Range: 1-5.",
+          "request_attempts": "Number of attempts for setup checks and commands after temporary communication failures. Background polls use one attempt so they cannot delay a command for several retry cycles. Range: 1-5.",
           "retry_delay": "Delay between retries. Range: 0-5 seconds.",
           "availability_grace": "How long to keep the last known state during communication problems. Range: 0-600 seconds."
         }
@@ -62,6 +62,9 @@
     "switch": {
       "automatic_brightness": {
         "name": "Automatic brightness (EyeCare)"
+      },
+      "smart_night_light": {
+        "name": "Smart night light"
       }
     }
   }

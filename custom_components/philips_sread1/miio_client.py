@@ -106,6 +106,7 @@ class PhilipsSread1State:
     ambient_is_on: bool
     ambient_brightness: int
     automatic_brightness_is_on: bool
+    smart_night_light_is_on: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,11 +118,12 @@ class PhilipsSread1Properties:
     ambient_power: MiIOPowerState
     ambient_brightness: int
     eyecare: MiIOPowerState
+    smart_night_light: MiIOPowerState
 
     @classmethod
     def from_result(cls, result: Any) -> PhilipsSread1Properties:
         """Validate and map the positional MiIO get_prop response."""
-        if not isinstance(result, list) or len(result) < 6:
+        if not isinstance(result, list) or len(result) < len(SREAD1_STATUS_PROPERTIES):
             raise MiIOProtocolError("get_prop returned an unexpected result")
 
         (
@@ -131,6 +133,9 @@ class PhilipsSread1Properties:
             ambient_power,
             ambient_brightness,
             eyecare,
+            _scene_number,
+            smart_night_light,
+            _delay_off_countdown,
             *_future_properties,
         ) = result
         return cls(
@@ -141,6 +146,7 @@ class PhilipsSread1Properties:
                 ambient_brightness, "Ambient brightness"
             ),
             eyecare=cls._parse_power(eyecare, "EyeCare"),
+            smart_night_light=cls._parse_power(smart_night_light, "Smart night light"),
         )
 
     def as_state(self) -> PhilipsSread1State:
@@ -153,6 +159,7 @@ class PhilipsSread1Properties:
             ambient_is_on=self.ambient_power is MiIOPowerState.ON,
             ambient_brightness=self.ambient_brightness,
             automatic_brightness_is_on=self.eyecare is MiIOPowerState.ON,
+            smart_night_light_is_on=(self.smart_night_light is MiIOPowerState.ON),
         )
 
     @staticmethod
@@ -359,15 +366,20 @@ class PhilipsSread1MiIOClient:
         self,
         method: Sread1Method,
         params: Sequence[Any] | dict[str, Any] | None = None,
+        *,
+        attempts: int | None = None,
     ) -> Any:
         """Send a MiIO command, retrying only transient transport failures."""
+        request_attempts = self._request_attempts if attempts is None else attempts
+        if request_attempts < 1:
+            raise ValueError("Request attempts must be at least one")
         serialized_params = (
             list(params)
             if isinstance(params, Sequence) and not isinstance(params, str)
             else params
         )
         async with self._request_lock:
-            for attempt in range(1, self._request_attempts + 1):
+            for attempt in range(1, request_attempts + 1):
                 request_id = self._next_request_id()
                 try:
                     return await asyncio.to_thread(
@@ -377,7 +389,7 @@ class PhilipsSread1MiIOClient:
                         request_id,
                     )
                 except (MiIOTimeoutError, MiIOConnectionError) as err:
-                    if attempt == self._request_attempts:
+                    if attempt == request_attempts:
                         raise
 
                     delay = self._retry_delay * attempt
@@ -389,17 +401,21 @@ class PhilipsSread1MiIOClient:
                         request_id,
                         type(err).__name__,
                         attempt + 1,
-                        self._request_attempts,
+                        request_attempts,
                         delay,
                     )
                     await asyncio.sleep(delay)
 
         raise RuntimeError("MiIO request retry loop exited unexpectedly")
 
-    async def async_get_state(self) -> PhilipsSread1State:
-        """Read both light sources and automatic-brightness mode."""
+    async def async_get_state(
+        self, *, attempts: int | None = None
+    ) -> PhilipsSread1State:
+        """Read both light sources, EyeCare, and smart night light."""
         result = await self.async_request(
-            Sread1Method.GET_PROPERTIES, SREAD1_STATUS_PROPERTIES
+            Sread1Method.GET_PROPERTIES,
+            SREAD1_STATUS_PROPERTIES,
+            attempts=attempts,
         )
         return PhilipsSread1Properties.from_result(result).as_state()
 
@@ -440,6 +456,14 @@ class PhilipsSread1MiIOClient:
             [MiIOPowerState.ON if turn_on else MiIOPowerState.OFF],
         )
         self._validate_ok(result, Sread1Method.SET_EYECARE)
+
+    async def async_set_smart_night_light(self, turn_on: bool) -> None:
+        """Enable or disable touch-triggered smart night light."""
+        result = await self.async_request(
+            Sread1Method.SET_SMART_NIGHT_LIGHT,
+            [MiIOPowerState.ON if turn_on else MiIOPowerState.OFF],
+        )
+        self._validate_ok(result, Sread1Method.SET_SMART_NIGHT_LIGHT)
 
     def _next_request_id(self) -> int:
         """Increment the MiIO request ID, wrapping like established clients."""

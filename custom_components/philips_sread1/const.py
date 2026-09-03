@@ -12,7 +12,8 @@ MIIO_TIMEOUT: Final = 5.0
 MIIO_HANDSHAKE_TIMEOUT: Final = 1.0
 MIIO_REQUEST_ATTEMPTS: Final = 3
 MIIO_RETRY_DELAY_SECONDS: Final = 0.35
-POLL_INTERVAL_SECONDS: Final = 15
+POLL_INTERVAL_SECONDS: Final = 5
+POLL_BACKOFF_INTERVAL_SECONDS: Final = 15
 POLL_FAILURE_GRACE_SECONDS: Final = 60
 
 CONF_POLL_INTERVAL: Final = "poll_interval"
@@ -39,6 +40,7 @@ class Sread1Method(StrEnum):
     SET_AMBIENT_POWER = "enable_amb"
     SET_AMBIENT_BRIGHTNESS = "set_amb_bright"
     SET_EYECARE = "set_eyecare"
+    SET_SMART_NIGHT_LIGHT = "enable_bl"
 
 
 class Sread1Property(StrEnum):
@@ -51,7 +53,7 @@ class Sread1Property(StrEnum):
     AMBIENT_BRIGHTNESS = "ambvalue"
     EYECARE = "eyecare"
     SCENE_NUMBER = "scene_num"
-    BACKLIGHT_SENSOR = "bls"
+    SMART_NIGHT_LIGHT = "bls"
     DVALUE = "dvalue"
 
 
@@ -65,7 +67,7 @@ SREAD1_STATUS_PROPERTIES: Final[tuple[Sread1Property, ...]] = (
     Sread1Property.AMBIENT_BRIGHTNESS,
     Sread1Property.EYECARE,
     Sread1Property.SCENE_NUMBER,
-    Sread1Property.BACKLIGHT_SENSOR,
+    Sread1Property.SMART_NIGHT_LIGHT,
     Sread1Property.DVALUE,
 )
 

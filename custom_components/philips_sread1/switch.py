@@ -17,9 +17,12 @@ async def async_setup_entry(
     entry: PhilipsSread1ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the Philips SREAD1 automatic-brightness switch."""
+    """Set up the Philips SREAD1 feature switches."""
     async_add_entities(
-        [PhilipsSread1AutomaticBrightnessSwitch(entry.runtime_data, entry)]
+        [
+            PhilipsSread1AutomaticBrightnessSwitch(entry.runtime_data, entry),
+            PhilipsSread1SmartNightLightSwitch(entry.runtime_data, entry),
+        ]
     )
 
 
@@ -51,3 +54,33 @@ class PhilipsSread1AutomaticBrightnessSwitch(PhilipsSread1Entity, SwitchEntity):
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Disable EyeCare automatic brightness."""
         await self.coordinator.async_set_automatic_brightness(False)
+
+
+class PhilipsSread1SmartNightLightSwitch(PhilipsSread1Entity, SwitchEntity):
+    """Control touch-triggered smart night light."""
+
+    _attr_translation_key = "smart_night_light"
+
+    def __init__(
+        self,
+        coordinator: PhilipsSread1Coordinator,
+        entry: PhilipsSread1ConfigEntry,
+    ) -> None:
+        """Initialize the smart-night-light switch."""
+        super().__init__(coordinator, entry, "smart_night_light")
+
+    @property
+    @override
+    def is_on(self) -> bool:
+        """Return whether touch-triggered smart night light is enabled."""
+        return self.coordinator.data.smart_night_light_is_on
+
+    @override
+    async def async_turn_on(self, **_kwargs: Any) -> None:
+        """Enable touch-triggered smart night light."""
+        await self.coordinator.async_set_smart_night_light(True)
+
+    @override
+    async def async_turn_off(self, **_kwargs: Any) -> None:
+        """Disable touch-triggered smart night light."""
+        await self.coordinator.async_set_smart_night_light(False)
