@@ -35,14 +35,16 @@
           "poll_interval": "Polling interval (seconds)",
           "request_timeout": "Request timeout (seconds)",
           "handshake_timeout": "Handshake timeout (seconds)",
+          "handshake_ttl": "Handshake cache TTL (seconds)",
           "request_attempts": "Attempts per command",
           "retry_delay": "Retry delay (seconds)",
           "availability_grace": "Availability grace period (seconds)"
         },
         "data_description": {
-          "poll_interval": "How often to read the lamp while communication is healthy and no Home Assistant command was just sent. Range: 5-300 seconds. The default is 5 seconds.",
+          "poll_interval": "How often to read the lamp while communication is healthy and no Home Assistant command was just sent. Range: 5-300 seconds. The default is 60 seconds.",
           "request_timeout": "Maximum wait for an authenticated response. Range: 1-30 seconds.",
           "handshake_timeout": "Maximum wait for the UDP handshake. Range: 0.2-10 seconds.",
+          "handshake_ttl": "Leave empty to reuse a handshake until an error. Enter 0 to handshake before every request, or 1-86400 to refresh it after that many seconds.",
           "request_attempts": "Number of attempts for setup checks and commands after temporary communication failures. Background polls use one attempt so they cannot delay a command for several retry cycles. Range: 1-5.",
           "retry_delay": "Delay between retries. Range: 0-5 seconds.",
           "availability_grace": "How long to keep the last known state during communication problems. Range: 0-600 seconds."

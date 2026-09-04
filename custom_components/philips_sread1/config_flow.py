@@ -19,6 +19,7 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_AVAILABILITY_GRACE,
     CONF_HANDSHAKE_TIMEOUT,
+    CONF_HANDSHAKE_TTL,
     CONF_POLL_INTERVAL,
     CONF_REQUEST_ATTEMPTS,
     CONF_REQUEST_TIMEOUT,
@@ -142,6 +143,10 @@ class PhilipsSread1OptionsFlow(OptionsFlowWithReload):
                     CONF_HANDSHAKE_TIMEOUT,
                     default=options.get(CONF_HANDSHAKE_TIMEOUT, MIIO_HANDSHAKE_TIMEOUT),
                 ): vol.All(vol.Coerce(float), vol.Range(min=0.2, max=10)),
+                vol.Optional(
+                    CONF_HANDSHAKE_TTL,
+                    description={"suggested_value": options.get(CONF_HANDSHAKE_TTL)},
+                ): vol.All(vol.Coerce(float), vol.Range(min=0, max=86400)),
                 vol.Required(
                     CONF_REQUEST_ATTEMPTS,
                     default=options.get(CONF_REQUEST_ATTEMPTS, MIIO_REQUEST_ATTEMPTS),

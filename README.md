@@ -84,9 +84,11 @@ and can update it from later GitHub Releases.
 After installation, open the integration's **Configure** action to adjust the
 optional transport settings. The defaults are recommended for most networks:
 
-- Polling interval: `15` seconds (`5–300`)
+- Polling interval: `60` seconds (`5–300`)
 - Request timeout: `5` seconds (`1–30`)
 - Handshake timeout: `1` second (`0.2–10`)
+- Handshake cache TTL: empty by default (reuse until an error), `0` to
+  handshake before every request, or `1–86400` seconds for periodic refresh
 - Attempts per request: `3` (`1–5`)
 - Retry delay: `0.35` seconds (`0–5`)
 - Availability grace period: `60` seconds (`0–600`)
@@ -179,9 +181,10 @@ Xiaomi cloud.
 - Commands update Home Assistant immediately after the lamp acknowledges them;
   they do not trigger a redundant `get_prop` transaction. While communication
   is healthy, changes made with the physical controls are detected by the next
-  poll, normally within 5 seconds. After an HA command or a polling failure, the
-  next poll is delayed for at least 15 seconds so the ESP8266 has time to settle;
-  successful idle polling then returns to the configured interval.
+  poll, normally within 60 seconds with the stability-oriented default. The
+  client reuses authenticated session metadata until a transport or protocol
+  failure, avoiding a discovery exchange before every poll. A retry after a
+  timeout starts with a fresh handshake so lamp restarts recover automatically.
 - By default, setup checks and commands retry transient network failures up to
   three times. Background polls use one attempt and retry at the next scheduled
   interval so they cannot hold the MiIO request lock through several cycles.

@@ -12,13 +12,14 @@ MIIO_TIMEOUT: Final = 5.0
 MIIO_HANDSHAKE_TIMEOUT: Final = 1.0
 MIIO_REQUEST_ATTEMPTS: Final = 3
 MIIO_RETRY_DELAY_SECONDS: Final = 0.35
-POLL_INTERVAL_SECONDS: Final = 5
+POLL_INTERVAL_SECONDS: Final = 60
 POLL_BACKOFF_INTERVAL_SECONDS: Final = 15
 POLL_FAILURE_GRACE_SECONDS: Final = 60
 
 CONF_POLL_INTERVAL: Final = "poll_interval"
 CONF_REQUEST_TIMEOUT: Final = "request_timeout"
 CONF_HANDSHAKE_TIMEOUT: Final = "handshake_timeout"
+CONF_HANDSHAKE_TTL: Final = "handshake_ttl"
 CONF_REQUEST_ATTEMPTS: Final = "request_attempts"
 CONF_RETRY_DELAY: Final = "retry_delay"
 CONF_AVAILABILITY_GRACE: Final = "availability_grace"

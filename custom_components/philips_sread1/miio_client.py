@@ -98,6 +98,14 @@ class MiIOHandshake:
 
 
 @dataclass(frozen=True, slots=True)
+class _MiIOResponse:
+    """Validated response payload together with its device timestamp."""
+
+    payload: dict[str, Any]
+    timestamp: int
+
+
+@dataclass(frozen=True, slots=True)
 class PhilipsSread1State:
     """State of the supported SREAD1 light features."""
 
@@ -268,9 +276,9 @@ def _parse_handshake(packet: bytes) -> MiIOHandshake:
 
 def _parse_response(
     packet: bytes, token: bytes, expected_device_id: bytes
-) -> dict[str, Any]:
+) -> _MiIOResponse:
     """Validate, decrypt, and decode a normal MiIO response."""
-    device_id, _timestamp, checksum, encrypted = _parse_header(packet)
+    device_id, timestamp, checksum, encrypted = _parse_header(packet)
     if device_id != expected_device_id:
         raise MiIOProtocolError("Response came from an unexpected MiIO device ID")
     if not encrypted:
@@ -294,7 +302,7 @@ def _parse_response(
         raise MiIOJsonError("MiIO response is not valid JSON") from err
     if not isinstance(payload, dict):
         raise MiIOJsonError("MiIO response JSON is not an object")
-    return payload
+    return _MiIOResponse(payload=payload, timestamp=timestamp)
 
 
 class PhilipsSread1MiIOClient:
@@ -308,6 +316,7 @@ class PhilipsSread1MiIOClient:
         port: int = MIIO_PORT,
         timeout: float = MIIO_TIMEOUT,
         handshake_timeout: float = MIIO_HANDSHAKE_TIMEOUT,
+        handshake_ttl: float | None = None,
         request_attempts: int = MIIO_REQUEST_ATTEMPTS,
         retry_delay: float = MIIO_RETRY_DELAY_SECONDS,
     ) -> None:
@@ -335,6 +344,8 @@ class PhilipsSread1MiIOClient:
             raise ValueError("MiIO token must contain exactly 16 bytes")
         if handshake_timeout <= 0:
             raise ValueError("MiIO handshake timeout must be greater than zero")
+        if handshake_ttl is not None and handshake_ttl < 0:
+            raise ValueError("MiIO handshake TTL must not be negative")
         if request_attempts < 1:
             raise ValueError("MiIO request attempts must be at least one")
         if retry_delay < 0:
@@ -344,11 +355,14 @@ class PhilipsSread1MiIOClient:
         self._port = port
         self._timeout = timeout
         self._handshake_timeout = handshake_timeout
+        self._handshake_ttl = handshake_ttl
         self._request_attempts = request_attempts
         self._retry_delay = retry_delay
         self._request_id = secrets.randbelow(8999) + 1
         self._request_lock = asyncio.Lock()
         self._device_id: bytes | None = None
+        self._device_timestamp: int | None = None
+        self._last_handshake_monotonic: float | None = None
 
     @property
     def device_id(self) -> str | None:
@@ -359,7 +373,7 @@ class PhilipsSread1MiIOClient:
         """Perform only a MiIO handshake."""
         async with self._request_lock:
             handshake = await asyncio.to_thread(self._handshake_sync)
-            self._device_id = handshake.device_id
+            self._remember_handshake(handshake)
             return handshake
 
     async def async_request(
@@ -388,7 +402,17 @@ class PhilipsSread1MiIOClient:
                         serialized_params,
                         request_id,
                     )
+                except MiIOProtocolError:
+                    # Do not retry deterministic protocol or authentication
+                    # failures, but make the next independent request start
+                    # with a fresh handshake.
+                    self._invalidate_session()
+                    raise
                 except (MiIOTimeoutError, MiIOConnectionError) as err:
+                    # A timeout can mean that the lamp rebooted or stopped
+                    # accepting the cached timestamp. Force a fresh handshake
+                    # before the next bounded attempt.
+                    self._invalidate_session()
                     if attempt == request_attempts:
                         raise
 
@@ -510,6 +534,42 @@ class PhilipsSread1MiIOClient:
         finally:
             udp_socket.close()
 
+    def _remember_handshake(self, handshake: MiIOHandshake) -> None:
+        """Cache the device identity and clock learned from a handshake."""
+        self._device_id = handshake.device_id
+        self._device_timestamp = handshake.timestamp
+        self._last_handshake_monotonic = time.monotonic()
+
+    def _invalidate_session(self) -> None:
+        """Discard cached session metadata after a transport failure."""
+        self._device_id = None
+        self._device_timestamp = None
+        self._last_handshake_monotonic = None
+
+    def _has_session(self) -> bool:
+        """Return whether handshake metadata is available for another request."""
+        if self._device_id is None or self._device_timestamp is None:
+            return False
+        if self._handshake_ttl is None:
+            return True
+        if self._last_handshake_monotonic is None:
+            return False
+        return time.monotonic() - self._last_handshake_monotonic < self._handshake_ttl
+
+    def _session_for_request(self, udp_socket: socket.socket) -> MiIOHandshake:
+        """Return cached metadata or handshake when missing or TTL-expired."""
+        if self._has_session():
+            assert self._device_id is not None
+            assert self._device_timestamp is not None
+            return MiIOHandshake(
+                device_id=self._device_id,
+                timestamp=self._device_timestamp,
+            )
+
+        handshake = self._exchange_handshake(udp_socket)
+        self._remember_handshake(handshake)
+        return handshake
+
     def _exchange_handshake(self, udp_socket: socket.socket) -> MiIOHandshake:
         """Exchange a handshake on an already connected UDP socket."""
         udp_socket.settimeout(self._handshake_timeout)
@@ -542,11 +602,10 @@ class PhilipsSread1MiIOClient:
         return handshake
 
     def _request_sync(self, method: str, params: Any, request_id: int) -> Any:
-        """Perform a full blocking handshake/request transaction."""
+        """Perform one request, refreshing cached handshake data when needed."""
         udp_socket = self._open_socket()
         try:
-            handshake = self._exchange_handshake(udp_socket)
-            self._device_id = handshake.device_id
+            handshake = self._session_for_request(udp_socket)
             payload = {
                 "id": request_id,
                 "method": method,
@@ -574,11 +633,14 @@ class PhilipsSread1MiIOClient:
                     f"Could not send {method} to {self.host}"
                 ) from err
 
-            response = self._receive_matching_response(
+            parsed_response = self._receive_matching_response(
                 udp_socket, handshake.device_id, request_id, method
             )
         finally:
             udp_socket.close()
+
+        self._device_timestamp = parsed_response.timestamp
+        response = parsed_response.payload
 
         if "error" in response:
             error = response["error"]
@@ -611,7 +673,7 @@ class PhilipsSread1MiIOClient:
         device_id: bytes,
         request_id: int,
         method: str,
-    ) -> dict[str, Any]:
+    ) -> _MiIOResponse:
         """Receive datagrams until the matching request ID arrives or time expires."""
         deadline = time.monotonic() + self._timeout
         while True:
@@ -663,7 +725,7 @@ class PhilipsSread1MiIOClient:
                 )
 
             response = _parse_response(packet, self._token, device_id)
-            response_id = response.get("id")
+            response_id = response.payload.get("id")
             if response_id == request_id:
                 _LOGGER.debug(
                     "Matched MiIO response host=%s method=%s request_id=%s "

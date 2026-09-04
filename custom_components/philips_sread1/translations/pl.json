@@ -35,14 +35,16 @@
           "poll_interval": "Częstotliwość odpytywania (sekundy)",
           "request_timeout": "Limit czasu żądania (sekundy)",
           "handshake_timeout": "Limit czasu uzgadniania połączenia (sekundy)",
+          "handshake_ttl": "TTL pamięci handshake'u (sekundy)",
           "request_attempts": "Liczba prób każdej komendy",
           "retry_delay": "Opóźnienie ponowienia (sekundy)",
           "availability_grace": "Okres podtrzymania dostępności (sekundy)"
         },
         "data_description": {
-          "poll_interval": "Jak często odczytywać stan przy prawidłowej komunikacji, gdy Home Assistant nie wysłał właśnie komendy. Zakres: 5-300 sekund. Domyślnie: 5 sekund.",
+          "poll_interval": "Jak często odczytywać stan przy prawidłowej komunikacji, gdy Home Assistant nie wysłał właśnie komendy. Zakres: 5-300 sekund. Domyślnie: 60 sekund.",
           "request_timeout": "Maksymalny czas oczekiwania na uwierzytelnioną odpowiedź. Zakres: 1-30 sekund.",
           "handshake_timeout": "Maksymalny czas oczekiwania na uzgodnienie połączenia UDP. Zakres: 0,2-10 sekund.",
+          "handshake_ttl": "Pozostaw puste, aby używać handshake'u aż do błędu. Wpisz 0, aby wykonywać handshake przed każdym żądaniem, albo 1-86400, aby odświeżać go po podanej liczbie sekund.",
           "request_attempts": "Liczba prób sprawdzenia konfiguracji i komend po chwilowych problemach z komunikacją. Odpytywanie w tle wykonuje jedną próbę, aby nie opóźniać komendy przez kilka cykli ponawiania. Zakres: 1-5.",
           "retry_delay": "Opóźnienie pomiędzy ponowieniami. Zakres: 0-5 sekund.",
           "availability_grace": "Jak długo zachować ostatni znany stan podczas problemów z komunikacją. Zakres: 0-600 sekund."
