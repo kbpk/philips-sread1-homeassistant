@@ -93,6 +93,11 @@ optional transport settings. The defaults are recommended for most networks:
 - Retry delay: `0.35` seconds (`0–5`)
 - Availability grace period: `60` seconds (`0–600`)
 
+The initial state read and user commands use the configured bounded attempts.
+Established background polls use one attempt. If the lamp becomes unavailable,
+the integration probes it every `15` seconds and returns to the configured idle
+interval after the first successful response.
+
 Changing these values automatically reloads the integration. Host and token are
 not part of this tuning form; they remain in the config entry created by the
 initial setup flow. No YAML configuration is required.
@@ -185,11 +190,12 @@ Xiaomi cloud.
   client reuses authenticated session metadata until a transport or protocol
   failure, avoiding a discovery exchange before every poll. A retry after a
   timeout starts with a fresh handshake so lamp restarts recover automatically.
-- By default, setup checks and commands retry transient network failures up to
-  three times. Background polls use one attempt and retry at the next scheduled
-  interval so they cannot hold the MiIO request lock through several cycles.
-  The last confirmed state is kept for up to 60 seconds and later successful
-  polls recover automatically. These values can be changed through **Configure**.
+- By default, the initial state read, setup checks, and commands retry transient
+  network failures up to three times. Established background polls use one
+  attempt so they cannot hold the MiIO request lock through several cycles. The
+  last confirmed state is kept for up to 60 seconds; once it expires, an
+  unavailable lamp is probed every 15 seconds until it recovers. These values
+  can be changed through **Configure** (the 15-second recovery probe is fixed).
 - If HACS does not offer a new version, confirm that the GitHub tag has a full
   [GitHub Release](https://github.com/kbpk/philips-sread1-homeassistant/releases).
   A tag alone is not enough for release-based HACS updates.

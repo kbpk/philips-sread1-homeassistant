@@ -17,6 +17,7 @@ from .const import (
     POLL_BACKOFF_INTERVAL_SECONDS,
     POLL_FAILURE_GRACE_SECONDS,
     POLL_INTERVAL_SECONDS,
+    POLL_RECOVERY_INTERVAL_SECONDS,
 )
 from .miio_client import (
     MiIOError,
@@ -58,6 +59,7 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
         self._backoff_poll_interval = timedelta(
             seconds=max(poll_interval, POLL_BACKOFF_INTERVAL_SECONDS)
         )
+        self._recovery_poll_interval = timedelta(seconds=POLL_RECOVERY_INTERVAL_SECONDS)
         self._availability_grace = availability_grace
         self._last_device_update_monotonic: float | None = None
         self._consecutive_update_failures = 0
@@ -66,11 +68,13 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
     async def _async_update_data(self) -> PhilipsSread1State:
         """Fetch the current state of all supported lamp features."""
         try:
-            # Frequent background polls get one bounded attempt. Retrying the
-            # whole handshake/request exchange here can hold the client's lock
-            # long enough to make a user command wait; the next scheduled poll
-            # already provides the retry and failures use a slower interval.
-            state = await self.client.async_get_state(attempts=1)
+            # Setup has no entities or user commands waiting for the client, so
+            # use its configured bounded retries to avoid handing one missed
+            # response to Home Assistant's much slower config-entry retry loop.
+            # Established background polling still gets one attempt so it
+            # cannot hold the request lock through several retry cycles.
+            attempts = None if self.data is None else 1
+            state = await self.client.async_get_state(attempts=attempts)
         except MiIOInvalidTokenError as err:
             # Authentication failures are not transient connectivity problems and
             # must never be hidden behind cached state.
@@ -113,6 +117,9 @@ class PhilipsSread1Coordinator(DataUpdateCoordinator[PhilipsSread1State]):
                 if stale_age is None
                 else f"last successful update was {stale_age:.1f}s ago"
             )
+            # Once entities become unavailable, probe more often than the
+            # stability-oriented idle interval so recovery is surfaced quickly.
+            self.update_interval = self._recovery_poll_interval
             raise UpdateFailed(
                 f"Unable to update {NAME}: {err} ({stale_context}; "
                 f"consecutive failures={self._consecutive_update_failures})"

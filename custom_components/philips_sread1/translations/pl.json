@@ -30,7 +30,7 @@
     "step": {
       "init": {
         "title": "Ustawienia komunikacji",
-        "description": "Dostosuj odpytywanie w spoczynku i ponawianie żądań MiIO. Po komendzie z Home Assistanta lub błędzie komunikacji odpytywanie automatycznie zwalnia, aby chronić lampkę.",
+        "description": "Dostosuj odpytywanie w spoczynku i ponawianie żądań MiIO. Po komendach i błędach komunikacji częstotliwość odpytywania dostosowuje się, aby chronić lampkę i szybko przywracać jej dostępność.",
         "data": {
           "poll_interval": "Częstotliwość odpytywania (sekundy)",
           "request_timeout": "Limit czasu żądania (sekundy)",
@@ -45,7 +45,7 @@
           "request_timeout": "Maksymalny czas oczekiwania na uwierzytelnioną odpowiedź. Zakres: 1-30 sekund.",
           "handshake_timeout": "Maksymalny czas oczekiwania na uzgodnienie połączenia UDP. Zakres: 0,2-10 sekund.",
           "handshake_ttl": "Pozostaw puste, aby używać handshake'u aż do błędu. Wpisz 0, aby wykonywać handshake przed każdym żądaniem, albo 1-86400, aby odświeżać go po podanej liczbie sekund.",
-          "request_attempts": "Liczba prób sprawdzenia konfiguracji i komend po chwilowych problemach z komunikacją. Odpytywanie w tle wykonuje jedną próbę, aby nie opóźniać komendy przez kilka cykli ponawiania. Zakres: 1-5.",
+          "request_attempts": "Liczba prób sprawdzenia konfiguracji i komend po chwilowych problemach z komunikacją. Po uruchomieniu integracji odpytywanie w tle wykonuje jedną próbę, aby nie opóźniać komendy przez kilka cykli ponawiania. Zakres: 1-5.",
           "retry_delay": "Opóźnienie pomiędzy ponowieniami. Zakres: 0-5 sekund.",
           "availability_grace": "Jak długo zachować ostatni znany stan podczas problemów z komunikacją. Zakres: 0-600 sekund."
         }

@@ -30,7 +30,7 @@
     "step": {
       "init": {
         "title": "Communication settings",
-        "description": "Adjust idle polling and MiIO retries. After a Home Assistant command or communication failure, polling automatically slows down to protect the lamp.",
+        "description": "Adjust idle polling and MiIO retries. Polling adapts after commands and communication failures to protect the lamp while recovering promptly.",
         "data": {
           "poll_interval": "Polling interval (seconds)",
           "request_timeout": "Request timeout (seconds)",
@@ -45,7 +45,7 @@
           "request_timeout": "Maximum wait for an authenticated response. Range: 1-30 seconds.",
           "handshake_timeout": "Maximum wait for the UDP handshake. Range: 0.2-10 seconds.",
           "handshake_ttl": "Leave empty to reuse a handshake until an error. Enter 0 to handshake before every request, or 1-86400 to refresh it after that many seconds.",
-          "request_attempts": "Number of attempts for setup checks and commands after temporary communication failures. Background polls use one attempt so they cannot delay a command for several retry cycles. Range: 1-5.",
+          "request_attempts": "Number of attempts for setup checks and commands after temporary communication failures. Established background polls use one attempt so they cannot delay a command for several retry cycles. Range: 1-5.",
           "retry_delay": "Delay between retries. Range: 0-5 seconds.",
           "availability_grace": "How long to keep the last known state during communication problems. Range: 0-600 seconds."
         }
